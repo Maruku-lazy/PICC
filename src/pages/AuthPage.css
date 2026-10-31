@@ -1,0 +1,146 @@
+/* PiCC authentication page — scoped to this page so other portal styles are unchanged. */
+.auth-page {
+  --auth-navy: #14345b;
+  --auth-blue: #2f658a;
+  --auth-gold: #c6a15b;
+  --auth-paper: #f5f7fa;
+  min-height: 100vh;
+  min-height: 100dvh;
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 17px;
+  padding: clamp(20px, 4vw, 62px);
+  background-color: #14345b;
+  /* Add your own school photo at public/images/picc-campus.jpg. */
+  background-image: linear-gradient(130deg, rgba(10, 29, 54, .77), rgba(20, 52, 91, .50)), url('/images/picc-campus.jpg');
+  background-size: cover;
+  background-position: center;
+}
+.auth-page::before { content: ''; position: absolute; inset: 0; z-index: -1; background: radial-gradient(ellipse at 12% 20%, rgba(198, 161, 91, .21), transparent 48%); }
+.auth-frame { width: min(1100px, 100%); min-height: 630px; display: grid; grid-template-columns: minmax(0, 1.01fr) minmax(0, 1fr); overflow: hidden; border-radius: 25px; box-shadow: 0 32px 85px rgba(3, 17, 37, .39), 0 4px 18px rgba(2, 18, 35, .14); background: white; }
+.auth-brand-panel { position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; gap: 52px; padding: 41px clamp(27px, 4vw, 60px) 35px; background: linear-gradient(155deg, #15365d 3%, #133053 62%, #0d2747 100%); color: #fff; }
+.auth-brand-panel::before { content: ''; position: absolute; border-radius: 50%; border: 1px solid rgba(242, 219, 172, .11); height: 630px; width: 630px; top: 38%; right: -76%; box-shadow: 0 0 0 73px rgba(232, 215, 180, .026), 0 0 0 145px rgba(232, 215, 180, .02); pointer-events: none; }
+.auth-brand-panel::after { content: ''; position: absolute; bottom: 0; right: 0; width: 230px; height: 230px; background: radial-gradient(circle at bottom right, rgba(198, 161, 91, .14), transparent 74%); pointer-events: none; }
+/* PiCC branding: larger JPG seal, clean borderless presentation. */
+.auth-brand-header { position: relative; z-index: 1; display: flex; align-items: center; gap: 15px; min-width: 0; width: 100%; }
+/* Place the seal closer to the left edge; avoid the former gray square frame. */
+.auth-logo-slot { width: 94px; height: 94px; margin-left: -14px; flex-shrink: 0; display: grid; place-items: center; border: 0; border-radius: 50%; color: #f4dcaa; background: transparent; overflow: hidden; }
+.auth-logo-slot img { display: block; width: 100%; height: 100%; object-fit: contain; border: 0; border-radius: 50%; padding: 0; }
+.auth-school-name { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.auth-school-name strong { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: clamp(20px, 2.15vw, 26px); letter-spacing: -.035em; line-height: 1.18; }
+.auth-school-name span { font-size: 13px; color: #bccde2; letter-spacing: .014em; }
+.auth-brand-content { position: relative; z-index: 1; max-width: 430px; }
+.auth-brand-kicker { color: #e5c78d; font-size: 10px; letter-spacing: .19em; font-weight: 800; margin-bottom: 22px; display: flex; align-items: center; gap: 10px; }
+.auth-brand-kicker span { width: 24px; height: 2px; background: #c6a15b; }
+.auth-brand-content h1 { font-size: clamp(35px, 3.5vw, 51px); line-height: 1.19; letter-spacing: -.047em; margin: 0 0 22px; font-weight: 800; color: #fff; }
+.auth-brand-content p { color: #c7d8e8; font-size: 13.5px; line-height: 1.84; max-width: 380px; margin: 0; }
+.auth-brand-divider { height: 1px; background: rgba(232, 240, 247, .16); width: 92%; margin: 30px 0 24px; }
+.auth-brand-benefits { display: grid; gap: 15px; font-size: 12px; color: #f0f5fa; font-weight: 700; }
+.auth-brand-benefits span { display: flex; align-items: center; gap: 12px; }
+.auth-brand-benefits svg { color: #e2c186; }
+.auth-brand-footer { position: relative; z-index: 1; display: flex; align-items: center; gap: 11px; font-size: 10.5px; color: #c1d2e5; }
+.auth-gold-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--auth-gold); box-shadow: 0 0 0 5px rgba(198, 161, 91, .15); }
+.auth-form-panel { display: flex; flex-direction: column; padding: 33px clamp(25px, 4.3vw, 59px) 28px; min-width: 0; background: #fff; }
+.auth-panel-topline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.auth-panel-eyebrow { color: #59758c; letter-spacing: .155em; font-weight: 800; font-size: 10px; }
+.auth-panel-step { font-size: 11px; color: #8b9bad; font-weight: 700; }
+.auth-panel-content { width: 100%; max-width: 433px; align-self: center; margin: auto 0; padding: 27px 0; animation: picc-auth-enter .25s ease both; }
+@keyframes picc-auth-enter { from { opacity: .3; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.auth-heading-icon { width: 53px; height: 53px; display: grid; place-items: center; border-radius: 15px; background: #eaf1f8; color: var(--auth-navy); margin-bottom: 24px; }
+.auth-panel-content h2 { font-size: clamp(27px, 2.8vw, 35px); line-height: 1.2; color: #183654; margin: 0 0 13px; font-weight: 800; letter-spacing: -.045em; }
+.auth-lead { font-size: 13px; line-height: 1.8; color: #71859a; margin: 0 0 27px; }
+.auth-role-options { display: grid; gap: 13px; }
+.auth-role-card { border: 1px solid #e0e8f0; border-radius: 14px; background: white; width: 100%; padding: 17px 16px; min-height: 90px; color: #183654; display: flex; align-items: center; gap: 15px; text-align: left; transition: border-color .18s, background .18s, transform .18s, box-shadow .18s; }
+.auth-role-card:hover { border-color: #9cb8ce; background: #f8fbfe; box-shadow: 0 9px 22px rgba(24, 54, 84, .055); transform: translateY(-2px); }
+.auth-role-card:active { transform: translateY(0); }
+.auth-role-icon { height: 53px; width: 53px; flex-shrink: 0; border-radius: 12px; display: grid; place-items: center; background: #e9f1f8; color: #2f658a; }
+.auth-role-icon--registrar { background: #fbf3e4; color: #a88240; }
+.auth-role-copy { flex: 1; min-width: 0; display: grid; gap: 5px; }
+.auth-role-copy strong { font-size: 14px; font-weight: 800; }
+.auth-role-copy small { font-size: 11.5px; line-height: 1.55; color: #72869b; }
+.auth-role-card > svg { color: #7893a7; flex-shrink: 0; }
+.auth-role-footnote { display: flex; align-items: center; justify-content: center; gap: 8px; color: #7c8da0; margin: 25px 0 0; font-size: 10.5px; line-height: 1.6; text-align: center; }
+.auth-role-footnote svg { flex-shrink: 0; }
+.auth-back { display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 700; color: #5a758a; border: 0; background: transparent; padding: 3px 0; margin-bottom: 19px; }
+.auth-back:hover { color: #14345b; text-decoration: underline; }
+.auth-selected-role { display: inline-flex; align-items: center; gap: 8px; background: #eff4fa; color: #28547a; padding: 7px 11px; border-radius: 30px; font-size: 10.5px; font-weight: 800; margin-bottom: 15px; }
+.auth-tabs { display: grid; grid-template-columns: repeat(2, 1fr); padding: 4px; border-radius: 11px; background: #f0f4f8; gap: 5px; margin: -5px 0 23px; }
+.auth-tab { height: 39px; border: 0; background: transparent; color: #6d8196; font-weight: 800; font-size: 12px; border-radius: 8px; }
+.auth-tab.active { background: #fff; color: #173a62; box-shadow: 0 2px 7px rgba(23, 52, 85, .09); }
+.auth-fields { display: grid; gap: 16px; }
+.auth-field { display: grid; gap: 8px; font-size: 11.5px; font-weight: 800; color: #3a536c; }
+.auth-input-wrap { min-height: 48px; border: 1px solid #d8e2ed; border-radius: 10px; display: flex; align-items: center; gap: 11px; padding: 0 14px; color: #8296a9; background: #fff; transition: box-shadow .18s, border-color .18s; }
+.auth-input-wrap:focus-within { border-color: #648bae; box-shadow: 0 0 0 3px #e6f0fa; }
+.auth-input-wrap > svg { flex-shrink: 0; }
+.auth-input-wrap input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; min-height: 46px; color: #173653; font-size: 12.5px; font-weight: 500; }
+.auth-input-wrap input:focus-visible { outline: 0; }
+.auth-input-wrap input::placeholder { color: #a2b1be; }
+.auth-toggle-visibility { border: 0; background: transparent; color: #7b91a3; display: grid; place-items: center; padding: 5px; border-radius: 6px; }
+.auth-toggle-visibility:hover { background: #edf3f8; }
+.auth-forgot-row { display: flex; justify-content: flex-end; margin: -4px 0 2px; }
+.auth-inline-link { border: 0; padding: 0; background: none; color: #2f658a; font-size: 11.5px; font-weight: 800; }
+.auth-inline-link:hover { text-decoration: underline; }
+.auth-submit { min-height: 49px; background: #14345b; color: #fff; border: 0; border-radius: 10px; padding: 12px 18px; font-size: 12.5px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 10px; transition: background .18s, transform .18s; }
+.auth-submit:hover { background: #2f658a; transform: translateY(-1px); }
+.auth-submit svg { flex-shrink: 0; }
+.auth-notice { padding: 12px 13px; display: flex; gap: 8px; border-radius: 9px; font-size: 11.5px; font-weight: 600; line-height: 1.55; }
+.auth-notice--error { background: #fff1ef; border: 1px solid #f1d3ce; color: #9e3b35; }
+.auth-notice--info { background: #edf4fb; border: 1px solid #cbdde9; color: #375e80; }
+.auth-notice--success { background: #ecf7f0; border: 1px solid #c9e9d4; color: #277449; }
+.auth-notice svg { flex-shrink: 0; }
+.auth-demo-help { margin-top: 18px; padding: 13px 14px; background: #f9f6ef; border: 1px solid #ede1cc; border-radius: 10px; display: flex; align-items: center; gap: 12px; justify-content: space-between; }
+.auth-demo-help div { display: grid; gap: 4px; }
+.auth-demo-help strong { font-size: 11px; color: #7d6231; }
+.auth-demo-help small { font-size: 10px; color: #9b8769; line-height: 1.4; }
+.auth-demo-help button { flex-shrink: 0; border: 1px solid #d8bd88; background: white; color: #856326; font-size: 10px; font-weight: 800; border-radius: 7px; padding: 9px 10px; }
+.auth-demo-help button:hover { background: #fff9eb; }
+.auth-signup-note { margin: 16px 0 0; font-size: 10.5px; color: #7c8da0; line-height: 1.6; }
+.auth-panel-footer { color: #8a9cad; font-size: 10px; display: flex; justify-content: space-between; gap: 10px; }
+.auth-page-caption { margin: 0; color: rgba(255, 255, 255, .86); font-size: 10px; letter-spacing: .04em; text-align: center; }
+@media (max-width: 870px) {
+  .auth-frame { grid-template-columns: minmax(0, .82fr) minmax(0, 1fr); }
+  .auth-brand-panel { padding: 32px 28px; }
+  .auth-logo-slot { width: 76px; height: 76px; margin-left: -8px; }
+  .auth-school-name strong { font-size: 21px; }
+  .auth-school-name span { font-size: 11px; }
+  .auth-form-panel { padding: 30px; }
+  .auth-brand-content h1 { font-size: clamp(29px, 4vw, 39px); }
+}
+@media (max-width: 680px) {
+  .auth-page { padding: 14px; justify-content: flex-start; }
+  .auth-frame { grid-template-columns: 1fr; border-radius: 18px; min-height: auto; }
+  .auth-brand-panel { padding: 23px 24px; gap: 17px; }
+  .auth-logo-slot { width: 66px; height: 66px; margin-left: -6px; border-radius: 50%; }
+  .auth-brand-header { gap: 13px; }
+  .auth-school-name strong { font-size: clamp(18px, 5.1vw, 22px); }
+  .auth-school-name span { font-size: 11px; }
+  .auth-brand-content, .auth-brand-footer { display: none; }
+  .auth-form-panel { padding: 25px 25px 21px; min-height: 490px; }
+  .auth-panel-content { margin: auto; padding: 25px 0; }
+  .auth-panel-content h2 { font-size: 29px; }
+  .auth-page-caption { padding-bottom: 7px; }
+}
+@media (max-width: 410px) {
+  .auth-form-panel { padding: 22px 18px; }
+  .auth-role-card { padding: 13px 11px; gap: 10px; }
+  .auth-role-icon { height: 43px; width: 43px; }
+  .auth-role-copy strong { font-size: 12px; }
+  .auth-role-copy small { font-size: 10px; }
+  .auth-demo-help { flex-direction: column; align-items: stretch; }
+  .auth-demo-help button { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-panel-content { animation: none; }
+  .auth-role-card, .auth-submit { transition: none; }
+}
+
+/* On very narrow phones, preserve space for the full college name. */
+@media (max-width: 410px) {
+  .auth-brand-header { gap: 10px; }
+  .auth-logo-slot { width: 58px; height: 58px; margin-left: 0; }
+  .auth-school-name strong { font-size: 17px; }
+}

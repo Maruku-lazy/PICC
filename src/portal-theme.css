@@ -1,0 +1,144 @@
+/* PiCC authenticated-portal visual theme
+   Navy / blue are the primary UI colors.
+   Green is intentionally reserved for completed checklist steps.
+   This stylesheet is loaded AFTER styles.css and does not alter the login page.
+*/
+
+.app-shell {
+  --picc-navy: #102f56;
+  --picc-deep-navy: #0b284b;
+  --picc-blue: #124c8c;
+  --picc-blue-hover: #0e3d74;
+  --picc-muted-blue: #6381a7;
+  --picc-pale-blue: #e8f2fc;
+  --picc-border: #dfebf6;
+  --picc-check-green: #07865e;
+  color: var(--picc-navy);
+  background: #f5f8fc;
+}
+
+/* Sidebar and school branding */
+.app-shell .sidebar {
+  background:
+    radial-gradient(circle at 5% 75%, rgba(50, 108, 178, .23), transparent 55%),
+    linear-gradient(170deg, #112f55 0%, #0b274a 100%);
+  color: #e4efff;
+}
+
+.app-shell .brand { gap: 12px; }
+.app-shell .brand-mark {
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  height: 48px;
+  width: 48px;
+  flex-shrink: 0;
+  overflow: hidden;
+  color: #fff;
+}
+.app-shell .brand-mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 50%;
+}
+.app-shell .brand strong { color: #fff; }
+.app-shell .brand small,
+.app-shell .workspace-label { color: #abc2e1; }
+.app-shell .side-link { color: #d7e7fb; }
+.app-shell .side-link:hover,
+.app-shell .side-link.active {
+  background: #174e8c;
+  color: #fff;
+}
+.app-shell .sidebar-note {
+  border-color: rgba(172, 200, 237, .25);
+  background: rgba(101, 155, 229, .1);
+  color: #d4e5ff;
+}
+.app-shell .sidebar-note svg { color: #d4e5ff; }
+.app-shell .logout { color: #e1edff; }
+.app-shell .logout:hover { background: #174e8c; }
+
+/* Headings, metrics, status and calls to action */
+.app-shell .breadcrumb strong,
+.app-shell .page-header h1,
+.app-shell .section-heading h2,
+.app-shell .metric > strong,
+.app-shell .step-item strong,
+.app-shell .application-summary h3 { color: var(--picc-navy); }
+
+.app-shell .eyebrow,
+.app-shell .text-link { color: var(--picc-blue); }
+.app-shell .page-icon,
+.app-shell .metric-icon.mint,
+.app-shell .empty-icon,
+.app-shell .form-heading-icon,
+.app-shell .role-icon.mint {
+  background: var(--picc-pale-blue);
+  color: var(--picc-blue);
+}
+.app-shell .prototype-pill,
+.app-shell .user-avatar {
+  color: #114c88;
+  background: #e5f1fd;
+}
+.app-shell .button-primary {
+  background: var(--picc-blue);
+  border-color: var(--picc-blue);
+  color: #fff;
+  box-shadow: 0 5px 15px rgba(14, 62, 116, .17);
+}
+.app-shell .button-primary:hover { background: var(--picc-blue-hover); }
+.app-shell .button-secondary { color: var(--picc-blue); }
+.app-shell .surface-card,
+.app-shell .metric { border-color: var(--picc-border); }
+.app-shell .status-documents_verified {
+  color: var(--picc-blue);
+  background: #e3f0ff;
+}
+.app-shell .soft-panel {
+  background: #eef6ff;
+  border-color: #d7e9fd;
+  color: #355b82;
+}
+.app-shell .soft-panel svg { color: var(--picc-blue); }
+
+/* Neutral numbered steps stay blue; completed check marks stay GREEN. */
+.app-shell .step-bubble {
+  border-color: #cfe0f1;
+  background: #fff;
+  color: var(--picc-navy);
+}
+.app-shell .step-bubble.done {
+  color: var(--picc-check-green);
+  background: #dbf5e8;
+  border-color: #bcebd5;
+}
+.app-shell .step-bubble.done svg { stroke: var(--picc-check-green); }
+
+/* Blue feedback for the other portal forms and controls. */
+.app-shell .form-field input:focus,
+.app-shell .form-field select:focus,
+.app-shell .form-field textarea:focus {
+  border-color: #3f80c9;
+  box-shadow: 0 0 0 3px #e5f1ff;
+}
+.app-shell .form-field input[type="checkbox"],
+.app-shell .declaration-box input { accent-color: var(--picc-blue); }
+.app-shell .requirements-list svg { color: var(--picc-check-green); }
+.app-shell .help-line svg { color: var(--picc-blue); }
+.app-shell .back-link:hover { color: var(--picc-blue); }
+.app-shell .notice-success { color: #164f87; background: #eaf3ff; border-color: #cde2fb; }
+.app-shell button:focus-visible,
+.app-shell a:focus-visible,
+.app-shell input:focus-visible,
+.app-shell select:focus-visible,
+.app-shell textarea:focus-visible {
+  outline-color: #5b9adf;
+}
+
+@media (max-width: 680px) {
+  .app-shell .brand-mark { width: 44px; height: 44px; }
+}

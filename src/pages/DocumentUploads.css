@@ -1,0 +1,103 @@
+/* PiCC enrollment demo: scanned-document selection and registrar filenames.
+   This stylesheet is imported by both ApplicationPage and RegistrarApplication;
+   it does not alter the global navy-blue portal theme. */
+.document-progress {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border: 1px solid #d8e5f1;
+  border-radius: 10px;
+  background: #f1f6fc;
+  color: #14345b;
+  font-size: 12px;
+}
+.document-progress strong { font-size: 13px; }
+.document-upload-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 18px;
+  display: grid;
+  gap: 10px;
+}
+.document-upload-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  padding: 14px;
+  border: 1px solid #d9e5f0;
+  border-radius: 12px;
+  background: #fff;
+}
+.document-upload-description {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+.document-upload-description > svg { color: #24588b; flex-shrink: 0; margin-top: 2px; }
+.document-upload-description > div { display: grid; gap: 4px; min-width: 0; }
+.document-upload-description strong { color: #14345b; font-size: 12px; line-height: 1.5; }
+.document-upload-description small { color: #788da3; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.document-upload-description small.document-selected { color: #07865e; font-weight: 700; }
+.document-upload-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.document-upload-control,
+.document-remove-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  border-radius: 8px;
+  padding: 8px 11px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.document-upload-control {
+  position: relative;
+  background: #124c8c;
+  color: #fff;
+  border: 1px solid #124c8c;
+}
+.document-upload-control:hover { background: #0c376a; }
+.document-upload-control:focus-within { outline: 3px solid #97c4f4; outline-offset: 2px; }
+.document-upload-control input[type='file'] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+}
+.document-remove-control {
+  border: 1px solid #cbdbea;
+  color: #1d4773;
+  background: #fff;
+}
+.document-remove-control:hover { background: #f0f6fd; }
+.document-record-badge {
+  flex-shrink: 0;
+  border: 1px solid #d9e5f0;
+  background: #f5f8fc;
+  color: #55708c;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.document-record-badge.selected { background: #dff5e9; border-color: #b7e5cd; color: #07865e; }
+@media (max-width: 800px) {
+  .document-upload-row { align-items: stretch; flex-direction: column; }
+  .document-upload-actions { justify-content: flex-start; }
+  .document-record-badge { align-self: flex-start; }
+}
+
+/* Keep annual family income beside 4Ps, below mother's contact field. */
+@media (max-width: 680px) {
+  .income-row-spacer { display: none; }
+}

@@ -1,10 +1,12 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { ArrowLeft, ClipboardCheck, FileText, Info, MessageSquareText } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useDemo } from '../context/DemoContext';
 import { statusDescription, statusLabel, type ApplicationStatus } from '../types';
 import { getDocumentRequirements } from '../data/documentRequirements';
 import './DocumentUploads.css';
+import DocumentPreview from '../components/DocumentPreview';
+import { listApplicationDocuments, type ApplicationDocument } from '../services/documentService';
 
 function formatPeso(value?: string) {
   if (!value?.trim()) return undefined;
@@ -26,6 +28,23 @@ export default function RegistrarApplication() {
   const [note, setNote] = useState(app?.reviewerNote || '');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [uploadedDocuments, setUploadedDocuments] = useState<ApplicationDocument[]>([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [documentsError, setDocumentsError] = useState('');
+
+  useEffect(() => {
+    if (!isSupabase || !id) { setUploadedDocuments([]); return; }
+    let cancelled = false;
+    setDocumentsLoading(true);
+    setDocumentsError('');
+    void listApplicationDocuments(id).then((documents) => {
+      if (!cancelled) setUploadedDocuments(documents);
+    }).catch((cause: unknown) => {
+      if (!cancelled) setDocumentsError(cause instanceof Error ? cause.message : 'Could not load documents.');
+    }).finally(() => { if (!cancelled) setDocumentsLoading(false); });
+    return () => { cancelled = true; };
+  }, [isSupabase, id]);
+
 
   if (dataLoading) return <div className="soft-panel" role="status">Loading application…</div>;
   if (!app) {
@@ -58,7 +77,9 @@ export default function RegistrarApplication() {
   }
 
   const documentRequirements = getDocumentRequirements(app.studentType, app.civilStatus.toLowerCase() === 'married');
-  const selectedDocumentCount = documentRequirements.filter((doc) => !doc.physicalOnly && !!app.documentUploads?.[doc.name]).length;
+  const selectedDocumentCount = documentRequirements.filter((doc) => !doc.physicalOnly && (isSupabase
+    ? uploadedDocuments.some((entry) => entry.requirement_type === doc.name)
+    : Boolean(app.documentUploads?.[doc.name]))).length;
   const canStart = app.status === 'submitted';
   const canComplete = app.status === 'under_review';
 
@@ -136,8 +157,10 @@ export default function RegistrarApplication() {
         <section className="surface-card form-card">
           <div className="form-section-heading">
             <span className="form-heading-icon"><FileText size={19} /></span>
-            <div><h2>Document selection record</h2><p>{isSupabase ? 'Private scanned document uploads are not yet enabled.' : 'Filenames from the student application (demo only).'}</p></div>
+            <div><h2>Document selection record</h2><p>{isSupabase ? 'Private scanned documents uploaded by the applicant.' : 'Filenames from the student application (demo only).'}</p></div>
           </div>
+          {documentsLoading && <div className="soft-panel" role="status">Loading scanned documents…</div>}
+          {documentsError && <div className="notice-error" role="alert">{documentsError}</div>}
           {documentRequirements.length > 0 ? (
             <>
               <div className="document-progress">
@@ -146,7 +169,8 @@ export default function RegistrarApplication() {
               </div>
               <ul className="document-upload-list">
                 {documentRequirements.map((doc) => {
-                  const filename = app.documentUploads?.[doc.name];
+                  const record = isSupabase ? uploadedDocuments.find((entry) => entry.requirement_type === doc.name) : undefined;
+                  const filename = isSupabase ? record?.original_filename : app.documentUploads?.[doc.name];
                   return (
                     <li key={doc.name} className="document-upload-row">
                       <div className="document-upload-description">
@@ -157,15 +181,18 @@ export default function RegistrarApplication() {
                             <small>Physical submission required</small>
                           ) : (
                             <small className={filename ? 'document-selected' : ''}>
-                              {filename ? `Selected filename: ${filename}` : 'No file selected'}
+                              {filename ? `${isSupabase ? 'Uploaded filename' : 'Selected filename'}: ${filename}` : 'No file uploaded'}
                             </small>
                           )}
                         </div>
                       </div>
                       {!doc.physicalOnly && (
-                        <span className={`document-record-badge${filename ? ' selected' : ''}`}>
-                          {filename ? 'Filename listed' : 'Missing'}
-                        </span>
+                        <div className="document-upload-actions">
+                          {record && <DocumentPreview path={record.storage_path} filename={record.original_filename} contentType={record.content_type} />}
+                          <span className={`document-record-badge${filename ? ' selected' : ''}`}>
+                            {filename ? isSupabase ? 'Uploaded' : 'Filename listed' : 'Missing'}
+                          </span>
+                        </div>
                       )}
                     </li>
                   );
@@ -178,7 +205,7 @@ export default function RegistrarApplication() {
             </span></div>
           )}
           <div className="soft-panel"><Info size={19} /><span>
-            {isSupabase ? 'No files are uploaded yet. Actual scanned documents and AI verification are planned for the next phase.' : 'This is a filename-only demo. Actual scanned files are NOT stored or available to open, and no AI or registrar document verification has occurred.'}
+            {isSupabase ? 'In-app file previews are time-limited and permitted only for authorized accounts. Uploaded files have not been assessed by AI; Registrar verification remains a separate action.' : 'This is a filename-only demo. Actual scanned files are NOT stored, and no AI verification has occurred.'}
           </span></div>
         </section>
       </div>

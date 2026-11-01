@@ -9,8 +9,10 @@ import {
   blankApplication, PROGRAMS, statusLabel,
   type ApplicationInput, type EnrollmentApplication, type StudentType,
 } from '../types';
-import { getDocumentRequirements } from '../data/documentRequirements';
+import { getDocumentRequirements, ID_PHOTO_REQUIREMENT } from '../data/documentRequirements';
 import './DocumentUploads.css';
+import DocumentPreview from '../components/DocumentPreview';
+import { findMyApplicationId, listApplicationDocuments, uploadApplicationDocument, removeApplicationDocument, type ApplicationDocument } from '../services/documentService';
 
 type TextKey = Exclude<keyof ApplicationInput, 'declarationConfirmed' | 'documentUploads'>;
 
@@ -147,11 +149,33 @@ export default function ApplicationPage() {
   const [errors, setErrors] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadedDocuments, setUploadedDocuments] = useState<ApplicationDocument[]>([]);
+  const [documentApplicationId, setDocumentApplicationId] = useState<string | null>(null);
+  const [uploadingRequirement, setUploadingRequirement] = useState<string | null>(null);
+  const [documentNotice, setDocumentNotice] = useState('');
   const editable = !app || app.status === 'draft' || app.status === 'needs_correction';
 
   useEffect(() => {
     if (app) setForm(restoreForm(app));
   }, [app?.id, app?.updatedAt]);
+
+  const applicationId = app?.id ?? documentApplicationId;
+  useEffect(() => {
+    if (!isSupabase || !applicationId) { setUploadedDocuments([]); return; }
+    let cancelled = false;
+    void listApplicationDocuments(applicationId).then((documents) => {
+      if (!cancelled) setUploadedDocuments(documents);
+    }).catch((cause: unknown) => {
+      if (!cancelled) setErrors([cause instanceof Error ? cause.message : 'Could not load uploaded scans.']);
+    });
+    return () => { cancelled = true; };
+  }, [isSupabase, applicationId]);
+
+  async function reloadDocuments(id: string) {
+    const documents = await listApplicationDocuments(id);
+    setUploadedDocuments(documents);
+  }
+
 
   useEffect(() => {
     if (!saved) return;
@@ -165,40 +189,80 @@ export default function ApplicationPage() {
     setErrors([]);
   }
 
-  function handleDocumentSelection(documentName: string, file: File | undefined) {
-    if (!file) return;
-    if (isSupabase) { setErrors(['Secure scanned-document upload is not implemented in this phase.']); return; }
-    // Client-side selection only. For actual uploads, use private backend storage.
+  async function handleDocumentSelection(documentName: string, file: File | undefined) {
+    if (!file || uploadingRequirement) return;
     const validExtension = /\.(jpe?g|png|pdf)$/i.test(file.name);
     const acceptedMime = ['image/jpeg', 'image/png', 'application/pdf'];
-    const validMime = !file.type || acceptedMime.includes(file.type);
-    if (!validExtension || !validMime) {
+    if (!validExtension || (isSupabase && !acceptedMime.includes(file.type)) ||
+        (!isSupabase && file.type && !acceptedMime.includes(file.type))) {
       setErrors(['Please select a JPG, PNG, or PDF file.']);
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      setErrors(['Each document must be 10 MB or smaller.']);
+    if (documentName === ID_PHOTO_REQUIREMENT && !['image/jpeg', 'image/png'].includes(file.type)) {
+      setErrors(['For the 2×2 ID photo, upload one JPG or PNG image.']);
       return;
     }
-    if (file.size === 0) {
-      setErrors(['The selected file is empty.']);
+    if (file.size < 1 || file.size > 10 * 1024 * 1024) {
+      setErrors(['Scanned documents must be between 1 byte and 10 MB.']);
       return;
     }
-    setForm((previous) => ({
-      ...previous,
-      documentUploads: { ...previous.documentUploads, [documentName]: file.name },
-    }));
-    setErrors([]);
-    setSaved(false);
+    if (!isSupabase) {
+      setForm((previous) => ({
+        ...previous, documentUploads: { ...previous.documentUploads, [documentName]: file.name },
+      }));
+      setErrors([]); setSaved(false);
+      return;
+    }
+
+    setUploadingRequirement(documentName);
+    setErrors([]); setDocumentNotice('');
+    try {
+      let id = applicationId;
+      if (!id) {
+        // A new application must have a database ID before Storage can accept a scan.
+        const output: ApplicationInput = {
+          ...form,
+          fullName: applicantName(form),
+          academicTerm: `${form.semester} Semester, AY ${form.academicYear}`,
+        };
+        await saveApplication(output, false);
+        id = await findMyApplicationId();
+        setDocumentApplicationId(id);
+      }
+      const previous = uploadedDocuments.find((document) => document.requirement_type === documentName);
+      await uploadApplicationDocument(id, documentName, file, previous);
+      await reloadDocuments(id);
+      setDocumentNotice(`${documentName} uploaded to private storage.`);
+    } catch (cause) {
+      setErrors([cause instanceof Error ? cause.message : 'Could not upload the scanned document.']);
+    } finally {
+      setUploadingRequirement(null);
+    }
   }
 
-  function removeDocumentSelection(documentName: string) {
-    setForm((previous) => {
-      const documentUploads = { ...previous.documentUploads };
-      delete documentUploads[documentName];
-      return { ...previous, documentUploads };
-    });
-    setSaved(false);
+  async function removeDocumentSelection(documentName: string) {
+    if (!isSupabase) {
+      setForm((previous) => {
+        const documentUploads = { ...previous.documentUploads };
+        delete documentUploads[documentName];
+        return { ...previous, documentUploads };
+      });
+      setSaved(false);
+      return;
+    }
+    const document = uploadedDocuments.find((entry) => entry.requirement_type === documentName);
+    if (!document || uploadingRequirement) return;
+    setUploadingRequirement(documentName);
+    setErrors([]); setDocumentNotice('');
+    try {
+      await removeApplicationDocument(document);
+      await reloadDocuments(document.application_id);
+      setDocumentNotice(`${documentName} removed.`);
+    } catch (cause) {
+      setErrors([cause instanceof Error ? cause.message : 'Could not remove the scanned document.']);
+    } finally {
+      setUploadingRequirement(null);
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -232,7 +296,9 @@ export default function ApplicationPage() {
   const needsMarriageCertificate = form.civilStatus.toLowerCase() === 'married';
   const selectedDocs = getDocumentRequirements(form.studentType, needsMarriageCertificate);
   const scannableDocs = selectedDocs.filter((doc) => !doc.physicalOnly);
-  const selectedCount = scannableDocs.filter((doc) => Boolean(form.documentUploads[doc.name])).length;
+  const selectedCount = scannableDocs.filter((doc) => isSupabase
+    ? uploadedDocuments.some((record) => record.requirement_type === doc.name)
+    : Boolean(form.documentUploads[doc.name])).length;
 
   if (dataLoading) return <div className="soft-panel" role="status">Loading your application…</div>;
 
@@ -255,6 +321,7 @@ export default function ApplicationPage() {
         </div>
       )}
       {saved && <div className="notice-success" role="status"><CheckCircle2 size={18} /> {isSupabase ? 'Draft saved in Supabase.' : 'Draft saved in this browser.'}</div>}
+      {documentNotice && <div className="notice-success" role="status"><CheckCircle2 size={18} /> {documentNotice}</div>}
       {app?.status === 'needs_correction' && (
         <div className="notice-warning"><strong>Registrar requested a correction</strong><p>{app.reviewerNote}</p></div>
       )}
@@ -373,7 +440,10 @@ export default function ApplicationPage() {
                 </div>
               </FormSection>
 
-              <FormSection icon={<ClipboardList size={19} />} title="6. Documentary requirements" description={isSupabase ? "Document checklist. Secure uploads will be enabled in the next phase." : "Choose a scanned image or PDF for each applicable document (demo only)."}>
+            </fieldset>
+
+            <fieldset className="plain-fieldset document-preview-fieldset">
+              <FormSection icon={<ClipboardList size={19} />} title="6. Documentary requirements" description={isSupabase ? "Upload your sample scanned requirements to private Supabase Storage." : "Choose a scanned image or PDF for each applicable document (demo only)."}>
                 {form.studentType === 'returning' ? (
                   <div className="soft-panel"><Info size={18} /><span>
                     PiCC F2 does not list a separate returning-student document checklist.
@@ -387,7 +457,11 @@ export default function ApplicationPage() {
                     </div>
                     <ul className="document-upload-list">
                       {selectedDocs.map((document) => {
-                        const selectedFilename = form.documentUploads[document.name];
+                        const storedDocument = isSupabase
+                          ? uploadedDocuments.find((entry) => entry.requirement_type === document.name)
+                          : undefined;
+                        const selectedFilename = isSupabase
+                          ? storedDocument?.original_filename : form.documentUploads[document.name];
                         return (
                           <li key={document.name} className="document-upload-row">
                             <div className="document-upload-description">
@@ -398,31 +472,35 @@ export default function ApplicationPage() {
                                   <small>Physical requirement: bring to the Registrar's Office.</small>
                                 ) : (
                                   <small className={selectedFilename ? 'document-selected' : ''}>
-                                    {selectedFilename ? `Selected: ${selectedFilename}` : 'No file selected'}
+                                    {selectedFilename ? `${isSupabase ? 'Uploaded' : 'Selected'}: ${selectedFilename}` : 'No file uploaded'}
                                   </small>
                                 )}
                               </div>
                             </div>
-                            {!document.physicalOnly && editable && (
+                            {!document.physicalOnly && (editable || Boolean(storedDocument)) && (
                               <div className="document-upload-actions">
+                                {editable && (
                                 <label className="document-upload-control">
                                   <Upload size={15} aria-hidden="true" />
-                                  {isSupabase ? 'Coming soon' : selectedFilename ? 'Replace scan' : 'Upload scan'}
+                                  {uploadingRequirement === document.name ? 'Uploading…' : selectedFilename ? 'Replace scan' : 'Upload scan'}
                                   <input
-                                    type="file" disabled={isSupabase}
-                                    accept=".jpg,.jpeg,.png,.pdf"
+                                    type="file" disabled={Boolean(uploadingRequirement) || saving}
+                                    accept={document.name === ID_PHOTO_REQUIREMENT ? '.jpg,.jpeg,.png' : '.jpg,.jpeg,.png,.pdf'}
                                     aria-label={`Select scan for ${document.name}`}
                                     onChange={(event) => {
-                                      handleDocumentSelection(document.name, event.currentTarget.files?.[0]);
+                                      void handleDocumentSelection(document.name, event.currentTarget.files?.[0]);
                                       event.currentTarget.value = '';
                                     }}
                                   />
                                 </label>
-                                {selectedFilename && (
+                                )}
+                                {storedDocument && <DocumentPreview path={storedDocument.storage_path} filename={storedDocument.original_filename} contentType={storedDocument.content_type} />}
+                                {editable && selectedFilename && (
                                   <button
                                     type="button"
+                                    disabled={Boolean(uploadingRequirement) || saving}
                                     className="document-remove-control"
-                                    onClick={() => removeDocumentSelection(document.name)}
+                                    onClick={() => void removeDocumentSelection(document.name)}
                                     aria-label={`Remove selected scan for ${document.name}`}
                                   ><X size={15} /> Remove</button>
                                 )}
@@ -435,10 +513,13 @@ export default function ApplicationPage() {
                   </>
                 )}
                 <div className="soft-panel"><Info size={18} /><span>
-                  {isSupabase ? 'Files cannot be uploaded in Supabase mode yet. The upload control is disabled and filenames are not stored as verified documents. Do not use real student documents.' : 'Demo mode: filenames are saved with your sample application, but document contents are NOT uploaded, saved, or available for preview. Do not select real student documents.'}
+                  {isSupabase ? 'Development only: actual scans are stored privately and can be previewed by the student and authorized Registrar. Uploading does not mean AI screening or Registrar approval. Use fictional documents only.' : 'Demo mode: only filenames are saved. Document contents are NOT uploaded. Do not select real student documents.'}
                 </span></div>
               </FormSection>
 
+            </fieldset>
+
+            <fieldset className="plain-fieldset" disabled={!editable || saving}>
               <FormSection icon={<ShieldAlert size={19} />} title="7. Review and declaration" description="Confirm your entries before sample submission.">
                 <label className="declaration-box">
                   <input
@@ -453,8 +534,8 @@ export default function ApplicationPage() {
             </fieldset>
             {editable && (
               <div className="form-actions">
-                <button type="submit" disabled={saving} data-intent="save" className="button button-secondary"><Save size={18} /> Save draft</button>
-                <button type="submit" disabled={saving} data-intent="submit" className="button button-primary"><Send size={18} /> Submit sample application</button>
+                <button type="submit" disabled={saving || Boolean(uploadingRequirement)} data-intent="save" className="button button-secondary"><Save size={18} /> Save draft</button>
+                <button type="submit" disabled={saving || Boolean(uploadingRequirement)} data-intent="submit" className="button button-primary"><Send size={18} /> Submit sample application</button>
               </div>
             )}
           </form>
@@ -469,7 +550,7 @@ export default function ApplicationPage() {
           <section className="surface-card next-module-card">
             <div className="next-module-icon"><ShieldAlert size={23} /></div>
             <h3>Development demo only</h3>
-            <p>{isSupabase ? 'Application drafts are saved to a restricted development database. Uploaded documents are not saved yet. Use fictional data only.' : 'Applications are saved in this browser\'s localStorage. Use fictional data only.'}</p>
+            <p>{isSupabase ? 'Application drafts and sample scans are stored in your development Supabase project. Use fictional data only.' : 'Applications are saved in this browser\'s localStorage. Use fictional data only.'}</p>
             <span className="tag-neutral">{isSupabase ? 'Supabase connected · No AI yet' : 'No Supabase or AI yet'}</span>
           </section>
         </aside>

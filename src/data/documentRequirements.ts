@@ -8,13 +8,14 @@ export type DocumentRequirement = {
   physicalOnly?: boolean;
 };
 
+export const ID_PHOTO_REQUIREMENT = '2×2 ID photo (white background)';
+
 const FRESHMAN_DOCUMENTS: DocumentRequirement[] = [
   { name: 'PiCCAT Result Clearance' },
   { name: 'Original SF9 / High School Report Card' },
   { name: 'Original Certificate of Good Moral Character' },
   { name: 'PSA Birth Certificate' },
-  { name: 'Two 2×2 and two 1×1 ID photos (white background)' },
-  { name: 'One long white folder', physicalOnly: true },
+  { name: ID_PHOTO_REQUIREMENT },
 ];
 
 const TRANSFEREE_DOCUMENTS: DocumentRequirement[] = [
@@ -24,8 +25,7 @@ const TRANSFEREE_DOCUMENTS: DocumentRequirement[] = [
   { name: 'Subject / Course Descriptions from previous school' },
   { name: 'Original Certificate of Good Moral Character' },
   { name: 'PSA Birth Certificate' },
-  { name: 'Two 2×2 and two 1×1 ID photos' },
-  { name: 'One long white folder', physicalOnly: true },
+  { name: ID_PHOTO_REQUIREMENT },
 ];
 
 export function getDocumentRequirements(

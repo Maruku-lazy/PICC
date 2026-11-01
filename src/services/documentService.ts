@@ -20,12 +20,14 @@ export type ApplicationDocument = {
   content_type: string;
   file_size: number;
   created_at: string;
+  auto_screen_status: 'pending' | 'complete' | 'failed' | 'manual';
+  auto_screen_error: string;
 };
 
 export async function listApplicationDocuments(applicationId: string): Promise<ApplicationDocument[]> {
   const supabase = await getSupabase();
   const { data, error } = await supabase.from('application_documents')
-    .select('id,application_id,requirement_type,original_filename,storage_path,content_type,file_size,created_at')
+    .select('id,application_id,requirement_type,original_filename,storage_path,content_type,file_size,created_at,auto_screen_status,auto_screen_error')
     .eq('application_id', applicationId);
   if (error) throw error;
   return (data ?? []) as ApplicationDocument[];

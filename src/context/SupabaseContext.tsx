@@ -81,22 +81,28 @@ export function SupabaseProvider({ children }: { children: ReactNode }) {
 
   const role: DemoRole | null = profile?.account_status === 'active' ? profile.role : null;
 
-  const refreshApplications = useCallback(async () => {
+  // The initial account load can show the page loader. Subsequent background
+  // refreshes (including saveApplication() during document upload) must NOT set
+  // dataLoading=true: ApplicationPage would unmount, reset its upload/OCR state,
+  // and make the UI look like it reloaded while OCR is still running.
+  const refreshApplications = useCallback(async (showInitialLoader = false) => {
     if (!userId || !role) { setApplications([]); setDataLoading(false); return; }
-    setDataLoading(true);
+    if (showInitialLoader) setDataLoading(true);
     try {
       const { data, error } = await supabase.from('enrollment_applications')
         .select('id,student_id,form_data,status,reviewer_note,created_at,updated_at')
         .order('updated_at', { ascending: false });
       if (error) throw error;
       setApplications(((data ?? []) as ApplicationRow[]).map(toApplication));
-    } finally { setDataLoading(false); }
+    } finally {
+      if (showInitialLoader) setDataLoading(false);
+    }
   }, [role, userId]);
 
   useEffect(() => {
     if (!initialized || profileLoading) return;
     if (!role) { setApplications([]); setDataLoading(false); return; }
-    void refreshApplications().catch((error: unknown) => {
+    void refreshApplications(true).catch((error: unknown) => {
       console.error('Could not load applications:', error);
       setDataLoading(false);
     });

@@ -13,6 +13,7 @@ import { getDocumentRequirements, ID_PHOTO_REQUIREMENT } from '../data/documentR
 import './DocumentUploads.css';
 import DocumentPreview from '../components/DocumentPreview';
 import { findMyApplicationId, listApplicationDocuments, uploadApplicationDocument, removeApplicationDocument, type ApplicationDocument } from '../services/documentService';
+import { screenUploadedDocument } from '../services/autoScreeningService';
 
 type TextKey = Exclude<keyof ApplicationInput, 'declarationConfirmed' | 'documentUploads'>;
 
@@ -152,6 +153,7 @@ export default function ApplicationPage() {
   const [uploadedDocuments, setUploadedDocuments] = useState<ApplicationDocument[]>([]);
   const [documentApplicationId, setDocumentApplicationId] = useState<string | null>(null);
   const [uploadingRequirement, setUploadingRequirement] = useState<string | null>(null);
+  const [ocrStatus, setOcrStatus] = useState('');
   const [documentNotice, setDocumentNotice] = useState('');
   const editable = !app || app.status === 'draft' || app.status === 'needs_correction';
 
@@ -217,25 +219,66 @@ export default function ApplicationPage() {
     setUploadingRequirement(documentName);
     setErrors([]); setDocumentNotice('');
     try {
-      let id = applicationId;
-      if (!id) {
-        // A new application must have a database ID before Storage can accept a scan.
-        const output: ApplicationInput = {
-          ...form,
-          fullName: applicantName(form),
-          academicTerm: `${form.semester} Semester, AY ${form.academicYear}`,
-        };
-        await saveApplication(output, false);
-        id = await findMyApplicationId();
-        setDocumentApplicationId(id);
-      }
+      // Save the current fields first so the OCR comparison uses the same
+      // values that the Registrar will later read from Supabase.
+      const output: ApplicationInput = {
+        ...form,
+        fullName: applicantName(form),
+        academicTerm: `${form.semester} Semester, AY ${form.academicYear}`,
+      };
+      await saveApplication(output, false);
+      const id = applicationId ?? await findMyApplicationId();
+      setDocumentApplicationId(id);
       const previous = uploadedDocuments.find((document) => document.requirement_type === documentName);
       await uploadApplicationDocument(id, documentName, file, previous);
-      await reloadDocuments(id);
-      setDocumentNotice(`${documentName} uploaded to private storage.`);
+      const updated = await listApplicationDocuments(id);
+      setUploadedDocuments(updated);
+      const current = updated.find(doc => doc.requirement_type === documentName);
+      if (!current) throw new Error('Uploaded document is not listed in Supabase. Refresh and check the metadata.');
+      if (current.auto_screen_status === 'manual') {
+        setDocumentNotice(`${documentName} uploaded. This file requires manual Registrar inspection.`);
+      } else {
+        setOcrStatus(`Automatically reading ${documentName}…`);
+        try {
+          const comparison = await screenUploadedDocument(current, form, progress => {
+            setOcrStatus(`${documentName}: ${progress.label}${progress.percent == null ? '' : ` ${progress.percent}%`}`);
+          });
+          await reloadDocuments(id);
+          setDocumentNotice(`${documentName} uploaded and automatically screened: ${comparison.matchedCount} matched, ${comparison.mismatchCount} possible mismatches, ${comparison.needsReviewCount} need review. Registrar makes the final decision.`);
+        } catch (scanError) {
+          await reloadDocuments(id);
+          const message = scanError instanceof Error ? scanError.message : 'OCR failed';
+          setDocumentNotice(`${documentName} uploaded, but automatic OCR failed. Retry below before submitting. ${message}`);
+        } finally {
+          setOcrStatus('');
+        }
+      }
     } catch (cause) {
       setErrors([cause instanceof Error ? cause.message : 'Could not upload the scanned document.']);
     } finally {
+      setUploadingRequirement(null);
+    }
+  }
+
+  async function retryAutomaticScreen(doc: ApplicationDocument) {
+    if (uploadingRequirement || !editable || !isSupabase) return;
+    setUploadingRequirement(doc.requirement_type);
+    setErrors([]); setDocumentNotice('');
+    try {
+      // Save latest comparison fields so retries cannot silently compare old form data.
+      await saveApplication({ ...form, fullName: applicantName(form),
+        academicTerm: `${form.semester} Semester, AY ${form.academicYear}` }, false);
+      setOcrStatus(`Automatically reading ${doc.requirement_type}…`);
+      const comparison = await screenUploadedDocument(doc, form, progress => {
+        setOcrStatus(`${doc.requirement_type}: ${progress.label}${progress.percent == null ? '' : ` ${progress.percent}%`}`);
+      });
+      await reloadDocuments(doc.application_id);
+      setDocumentNotice(`AI screening saved: ${comparison.matchedCount} matched, ${comparison.mismatchCount} possible mismatches, ${comparison.needsReviewCount} need review.`);
+    } catch (cause) {
+      await reloadDocuments(doc.application_id).catch(() => undefined);
+      setErrors([cause instanceof Error ? cause.message : 'Could not repeat automatic screening.']);
+    } finally {
+      setOcrStatus('');
       setUploadingRequirement(null);
     }
   }
@@ -267,7 +310,9 @@ export default function ApplicationPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!editable || saving) return;
+    // Pressing Enter can submit a form even when the visible Save/Submit buttons
+    // are disabled. Never submit while a file upload or OCR scan is active.
+    if (!editable || saving || uploadingRequirement) return;
     const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLElement | null;
     const submit = submitter?.getAttribute('data-intent') === 'submit';
     const issues = submit ? validate(form) : [];
@@ -321,7 +366,8 @@ export default function ApplicationPage() {
         </div>
       )}
       {saved && <div className="notice-success" role="status"><CheckCircle2 size={18} /> {isSupabase ? 'Draft saved in Supabase.' : 'Draft saved in this browser.'}</div>}
-      {documentNotice && <div className="notice-success" role="status"><CheckCircle2 size={18} /> {documentNotice}</div>}
+      {documentNotice && <div className="soft-panel" role="status"><Info size={18} /> {documentNotice}</div>}
+      {ocrStatus && <div className="soft-panel" role="status"><Info size={18}/>{ocrStatus}</div>}
       {app?.status === 'needs_correction' && (
         <div className="notice-warning"><strong>Registrar requested a correction</strong><p>{app.reviewerNote}</p></div>
       )}
@@ -331,7 +377,6 @@ export default function ApplicationPage() {
         </div>
       )}
 
-      {isSupabase && <div className="soft-panel"><Info size={18}/><span>Scanned-document upload is not available yet in this backend phase. File selections are disabled until private storage is ready.</span></div>}
       <div className="form-layout">
         <div className="form-main">
           <form id="student-enrollment-form" onSubmit={handleSubmit} noValidate>
@@ -462,6 +507,9 @@ export default function ApplicationPage() {
                           : undefined;
                         const selectedFilename = isSupabase
                           ? storedDocument?.original_filename : form.documentUploads[document.name];
+                        const isScanningThisDocument = uploadingRequirement === document.name;
+                        const canRetryThisDocument = editable && !uploadingRequirement && !saving &&
+                          storedDocument && ['pending', 'failed'].includes(storedDocument.auto_screen_status);
                         return (
                           <li key={document.name} className="document-upload-row">
                             <div className="document-upload-description">
@@ -475,6 +523,15 @@ export default function ApplicationPage() {
                                     {selectedFilename ? `${isSupabase ? 'Uploaded' : 'Selected'}: ${selectedFilename}` : 'No file uploaded'}
                                   </small>
                                 )}
+                                {storedDocument && (
+                                  <small className={`picc-auto-status picc-auto-${storedDocument.auto_screen_status}`}>
+                                    {isScanningThisDocument ? 'Uploading / automatic OCR in progress…'
+                                      : storedDocument.auto_screen_status === 'complete' ? 'Automatic AI screening saved · Registrar review pending'
+                                      : storedDocument.auto_screen_status === 'manual' ? 'Manual check required (no automatic text OCR)'
+                                      : storedDocument.auto_screen_status === 'failed' ? 'Automatic OCR failed · Retry available'
+                                      : 'Automatic screening incomplete · Retry available'}
+                                  </small>
+                                )}
                               </div>
                             </div>
                             {!document.physicalOnly && (editable || Boolean(storedDocument)) && (
@@ -482,7 +539,7 @@ export default function ApplicationPage() {
                                 {editable && (
                                 <label className="document-upload-control">
                                   <Upload size={15} aria-hidden="true" />
-                                  {uploadingRequirement === document.name ? 'Uploading…' : selectedFilename ? 'Replace scan' : 'Upload scan'}
+                                  {uploadingRequirement === document.name ? 'Uploading / scanning…' : selectedFilename ? 'Replace scan' : 'Upload scan'}
                                   <input
                                     type="file" disabled={Boolean(uploadingRequirement) || saving}
                                     accept={document.name === ID_PHOTO_REQUIREMENT ? '.jpg,.jpeg,.png' : '.jpg,.jpeg,.png,.pdf'}
@@ -493,6 +550,10 @@ export default function ApplicationPage() {
                                     }}
                                   />
                                 </label>
+                                )}
+                                {canRetryThisDocument && (
+                                  <button type="button" className="document-remove-control"
+                                    onClick={() => void retryAutomaticScreen(storedDocument)}>Retry AI</button>
                                 )}
                                 {storedDocument && <DocumentPreview path={storedDocument.storage_path} filename={storedDocument.original_filename} contentType={storedDocument.content_type} />}
                                 {editable && selectedFilename && (
@@ -513,7 +574,7 @@ export default function ApplicationPage() {
                   </>
                 )}
                 <div className="soft-panel"><Info size={18} /><span>
-                  {isSupabase ? 'Development only: actual scans are stored privately and can be previewed by the student and authorized Registrar. Uploading does not mean AI screening or Registrar approval. Use fictional documents only.' : 'Demo mode: only filenames are saved. Document contents are NOT uploaded. Do not select real student documents.'}
+                  {isSupabase ? 'Development only: actual scans are stored privately and can be previewed by the student and authorized Registrar. JPG/PNG uploads trigger preliminary AI OCR; PDFs and 2×2 photos need manual checks. AI results are not approval decisions. Use fictional documents only.' : 'Demo mode: only filenames are saved. Document contents are NOT uploaded. Do not select real student documents.'}
                 </span></div>
               </FormSection>
 
@@ -551,7 +612,7 @@ export default function ApplicationPage() {
             <div className="next-module-icon"><ShieldAlert size={23} /></div>
             <h3>Development demo only</h3>
             <p>{isSupabase ? 'Application drafts and sample scans are stored in your development Supabase project. Use fictional data only.' : 'Applications are saved in this browser\'s localStorage. Use fictional data only.'}</p>
-            <span className="tag-neutral">{isSupabase ? 'Supabase connected · No AI yet' : 'No Supabase or AI yet'}</span>
+            <span className="tag-neutral">{isSupabase ? 'Supabase · Automatic OCR prototype' : 'No Supabase or AI yet'}</span>
           </section>
         </aside>
       </div>

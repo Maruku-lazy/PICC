@@ -3,9 +3,13 @@ import { ArrowLeft, ClipboardCheck, FileText, Info, MessageSquareText } from 'lu
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useDemo } from '../context/DemoContext';
 import { statusDescription, statusLabel, type ApplicationStatus } from '../types';
-import { getDocumentRequirements } from '../data/documentRequirements';
+import { getDocumentRequirements, ID_PHOTO_REQUIREMENT } from '../data/documentRequirements';
 import './DocumentUploads.css';
 import DocumentPreview from '../components/DocumentPreview';
+import DocumentAuditPanel from '../components/DocumentAuditPanel';
+import RegistrarSubjectAssignment from '../components/RegistrarSubjectAssignment';
+import RegistrarEnrollmentConfirmation from '../components/RegistrarEnrollmentConfirmation';
+import { useCallback } from 'react';
 import { listApplicationDocuments, type ApplicationDocument } from '../services/documentService';
 
 function formatPeso(value?: string) {
@@ -32,18 +36,27 @@ export default function RegistrarApplication() {
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [documentsError, setDocumentsError] = useState('');
 
+  const refreshDocuments = useCallback(async (silent = false) => {
+    if (!isSupabase || !id) return;
+    if (!silent) setDocumentsLoading(true);
+    setDocumentsError('');
+    try {
+      const documents = await listApplicationDocuments(id);
+      setUploadedDocuments(documents);
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : 'Could not load documents.';
+      setDocumentsError(message);
+      throw cause;
+    } finally {
+      if (!silent) setDocumentsLoading(false);
+    }
+  }, [isSupabase, id]);
+
   useEffect(() => {
     if (!isSupabase || !id) { setUploadedDocuments([]); return; }
-    let cancelled = false;
-    setDocumentsLoading(true);
-    setDocumentsError('');
-    void listApplicationDocuments(id).then((documents) => {
-      if (!cancelled) setUploadedDocuments(documents);
-    }).catch((cause: unknown) => {
-      if (!cancelled) setDocumentsError(cause instanceof Error ? cause.message : 'Could not load documents.');
-    }).finally(() => { if (!cancelled) setDocumentsLoading(false); });
-    return () => { cancelled = true; };
-  }, [isSupabase, id]);
+    // The callback reports errors in the existing page message.
+    void refreshDocuments().catch(() => {});
+  }, [isSupabase, id, refreshDocuments]);
 
 
   if (dataLoading) return <div className="soft-panel" role="status">Loading application…</div>;
@@ -188,7 +201,7 @@ export default function RegistrarApplication() {
                       </div>
                       {!doc.physicalOnly && (
                         <div className="document-upload-actions">
-                          {record && <DocumentPreview path={record.storage_path} filename={record.original_filename} contentType={record.content_type} />}
+                          {record && <DocumentPreview path={record.storage_path} filename={record.original_filename} contentType={record.content_type} enableOcr={doc.name !== ID_PHOTO_REQUIREMENT} requirementType={doc.name} applicant={app} applicationId={app.id} documentId={record.id} />}
                           <span className={`document-record-badge${filename ? ' selected' : ''}`}>
                             {filename ? isSupabase ? 'Uploaded' : 'Filename listed' : 'Missing'}
                           </span>
@@ -205,9 +218,11 @@ export default function RegistrarApplication() {
             </span></div>
           )}
           <div className="soft-panel"><Info size={19} /><span>
-            {isSupabase ? 'In-app file previews are time-limited and permitted only for authorized accounts. Uploaded files have not been assessed by AI; Registrar verification remains a separate action.' : 'This is a filename-only demo. Actual scanned files are NOT stored, and no AI verification has occurred.'}
+            {isSupabase ? 'In-app file previews are time-limited and permitted only for authorized accounts. JPG/PNG uploads trigger preliminary OCR in the student browser. The sidebar shows saved findings and lets the Registrar record a separate Pass/Fail/Follow-up verdict after manual inspection. Enrollment status is independent.' : 'This is a filename-only demo. Actual scanned files are NOT stored, and no AI verification has occurred.'}
           </span></div>
         </section>
+        {isSupabase && <RegistrarSubjectAssignment key={app.id} application={app} />}
+        {isSupabase && <RegistrarEnrollmentConfirmation key={`enrollment-${app.id}`} application={app} />}
       </div>
 
       <aside className="form-side">
@@ -229,6 +244,19 @@ export default function RegistrarApplication() {
             {app.status === 'documents_verified' && <div className="notice-success"><ClipboardCheck size={18} /> Form review marked complete. Uploaded documents are not verified.</div>}
           </form>
         </section>
+        {isSupabase && id && documentRequirements.length > 0 && (
+          <DocumentAuditPanel
+            key={id}
+            applicationId={id}
+            applicant={app}
+            reviewable={app.status === 'submitted' || app.status === 'under_review'}
+            requirements={documentRequirements}
+            documents={uploadedDocuments}
+            documentsLoading={documentsLoading}
+            documentsError={documentsError}
+            refreshDocuments={refreshDocuments}
+          />
+        )}
       </aside>
     </div>
   </>;

@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
-  BookOpen, ChevronRight, ClipboardList, GraduationCap, LayoutDashboard,
+  BookOpen, BookOpenCheck, CalendarDays, ChevronRight, ClipboardList, GraduationCap, LayoutDashboard,
   LogOut, Menu, ShieldAlert, X,
 } from 'lucide-react';
 import { useDemo } from '../context/DemoContext';
@@ -19,10 +19,12 @@ export default function Layout({ children }: { children: ReactNode }) {
     { path: '/student/application', label: 'My application', icon: ClipboardList },
   ] : [
     { path: '/registrar/dashboard', label: 'Application queue', icon: LayoutDashboard },
+    { path: '/registrar/academics', label: 'Academic management', icon: CalendarDays },
+    { path: '/registrar/curricula', label: 'Curriculum management', icon: BookOpenCheck },
     { path: '/registrar/roadmap', label: 'Upcoming modules', icon: BookOpen },
   ];
   const title = role === 'student' ? 'Student Portal' : "Registrar's Office";
-  const crumb = location.pathname.includes('application') ? 'Applications' : location.pathname.includes('roadmap') ? 'Upcoming modules' : 'Overview';
+  const crumb = location.pathname.includes('application') ? 'Applications' : location.pathname.includes('curricula') ? 'Curriculum management' : location.pathname.includes('academics') ? 'Academic management' : location.pathname.includes('roadmap') ? 'Development roadmap' : 'Overview';
   async function handleLogout() {
     try {
       await logout();

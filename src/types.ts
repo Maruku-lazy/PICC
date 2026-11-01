@@ -79,7 +79,7 @@ export const statusLabel: Record<ApplicationStatus, string> = {
   submitted: 'Submitted',
   under_review: 'Under review',
   needs_correction: 'Needs correction',
-  documents_verified: 'Review completed (demo)',
+  documents_verified: 'Form review complete',
 };
 
 export const statusDescription: Record<ApplicationStatus, string> = {
@@ -87,7 +87,7 @@ export const statusDescription: Record<ApplicationStatus, string> = {
   submitted: 'Your sample application is awaiting initial registrar review.',
   under_review: 'The registrar has started reviewing your sample application.',
   needs_correction: 'The registrar requested changes. Review the note and resubmit.',
-  documents_verified: 'Sample form review is complete. Documents and final enrollment have NOT been verified.',
+  documents_verified: 'Registrar form review is complete. Document decisions, assessment and final enrollment confirmation are tracked separately.',
 };
 
 export const blankApplication: ApplicationInput = {

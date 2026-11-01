@@ -2,15 +2,22 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Eye, FileImage, FileText, LoaderCircle, X } from 'lucide-react';
 import { createDocumentPreviewUrl } from '../services/documentService';
+import DocumentOcrPanel from './DocumentOcrPanel';
+import type { ScreeningApplicant } from '../services/screeningService';
 
 type DocumentPreviewProps = {
   path: string;
   filename?: string;
   contentType?: string;
+  enableOcr?: boolean; // Registrar-only UI option; Storage RLS still enforces permissions.
+  requirementType?: string;
+  applicant?: ScreeningApplicant;
+  applicationId?: string;
+  documentId?: string;
 };
 
 /** Private, short-lived document preview rendered inside the PiCC application. */
-export default function DocumentPreview({ path, filename, contentType }: DocumentPreviewProps) {
+export default function DocumentPreview({ path, filename, contentType, enableOcr = false, requirementType, applicant, applicationId, documentId }: DocumentPreviewProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [signedUrl, setSignedUrl] = useState('');
   const [loading, setLoading] = useState(false);
@@ -102,7 +109,7 @@ export default function DocumentPreview({ path, filename, contentType }: Documen
         >
           <div
             ref={dialogRef}
-            className="document-preview-modal"
+            className={`document-preview-modal${enableOcr ? ' document-preview-modal-with-ocr' : ''}`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="picc-document-preview-title"
@@ -127,6 +134,7 @@ export default function DocumentPreview({ path, filename, contentType }: Documen
               </button>
             </header>
 
+            <div className={`document-preview-content${enableOcr ? ' document-preview-content-with-ocr' : ''}`}>
             <div className="document-preview-body">
               {loading && (
                 <div className="document-preview-message" role="status">
@@ -157,6 +165,8 @@ export default function DocumentPreview({ path, filename, contentType }: Documen
                   </div>
                 )
               )}
+            </div>
+            {enableOcr && <DocumentOcrPanel path={path} isImage={isImage && !isPdf} requirementType={requirementType} applicant={applicant} applicationId={applicationId} documentId={documentId} />}
             </div>
             <footer className="document-preview-footer">
               Private preview • Access expires after 60 seconds. Close and reopen to refresh.

@@ -1,0 +1,49 @@
+.ec-panel {margin-top:20px;}
+.ec-panel .section-heading h2 {display:flex;align-items:center;gap:8px;}
+.ec-panel h3 {margin:18px 0 12px;color:#12365c;font-size:16px;}
+.ec-fields {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0;}
+.ec-field {display:flex;flex-direction:column;gap:6px;color:#214362;font-size:12px;font-weight:600;min-width:0;}
+.ec-field input,.ec-field select,.ec-field textarea {box-sizing:border-box;width:100%;border:1px solid #cbdaeb;background:#fff;border-radius:9px;padding:11px;font:inherit;font-size:13px;color:#183655;}
+.ec-field textarea {resize:vertical;}.ec-span {grid-column:1/-1;}
+.ec-info {display:flex;gap:10px;align-items:start;border:1px solid #c4d9ef;background:#eff6ff;padding:12px;border-radius:10px;color:#235079;font-size:12px;margin:10px 0;}
+.ec-refresh {display:inline-flex;align-items:center;gap:6px;border:1px solid #cfdfef;background:#fff;color:#174d80;border-radius:8px;padding:7px 10px;cursor:pointer;font-size:12px;}
+.ec-refresh:disabled {opacity:.6;cursor:not-allowed;}
+.ec-summary {display:flex;gap:16px;flex-wrap:wrap;margin:12px 0;padding:14px;background:#f2f7fd;border-radius:10px;font-size:13px;color:#245078;}
+.ec-hint {color:#647f99;font-size:12px;margin-top:12px;line-height:1.6;}
+.ec-divider {height:1px;background:#dce7f3;margin:24px 0 18px;}
+.ec-checks {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:10px 0 18px;}
+.ec-checks div {background:#f4f8fc;border:1px solid #e1eaf5;border-radius:8px;padding:10px;font-size:12px;color:#255175;}
+.ec-checks span {font-weight:800;color:#0c786a;margin-right:6px;}
+.ec-attestation {display:flex;align-items:start;gap:9px;font-size:12px;color:#25476b;line-height:1.6;margin:16px 0;}
+.ec-attestation input {margin-top:4px;}
+.ec-event-section {margin-top:18px;}.ec-events {padding:12px;border:1px solid #dce6f0;border-radius:9px;margin-top:8px;font-size:12px;color:#355d83;}
+.ec-events div + div {margin-top:6px;}
+.ec-certificate-wrapper {margin:16px 0 0;}
+.ec-certificate-toolbar {display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 15px;}
+.ec-certificate-toolbar .muted {font-size:12px;flex:1;}
+.ec-certificate {border:1px solid #cdd9e9;border-radius:10px;background:#fff;padding:20px;color:#183453;}
+.ec-certificate-banner {padding:9px;text-align:center;background:#fff2dd;color:#855d2b;border:1px solid #efd2a0;border-radius:5px;font-size:10px;font-weight:700;letter-spacing:.06em;}
+.ec-certificate-heading {text-align:center;padding:15px 0;}
+.ec-certificate-heading strong {font-size:18px;color:#0c3b73;}
+.ec-certificate-heading h2 {font-size:19px;margin:5px 0 3px;color:#0c3b73;}
+.ec-certificate-heading p {font-size:12px;margin:0;color:#4d7096;}
+.ec-certificate-meta {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:14px;border:1px solid #e0e8f1;border-radius:8px;margin:0 0 22px;}
+.ec-certificate-meta div {min-width:0;overflow-wrap:anywhere;}
+.ec-certificate-meta small {display:block;font-size:10px;color:#6685a4;margin-bottom:3px;}
+.ec-certificate-meta strong {font-size:12px;}
+.ec-certificate h3 {font-size:14px;margin:0 0 10px;}
+.ec-table-wrap {overflow-x:auto;}.ec-table {width:100%;border-collapse:collapse;font-size:11px;}
+.ec-table th,.ec-table td {border:1px solid #c9d7e6;padding:8px;vertical-align:top;text-align:left;}
+.ec-table th {background:#eff5fc;font-weight:700;}
+.ec-meetings {color:#5b7490;font-size:10px;margin-top:5px;}
+.ec-totals {display:flex;gap:15px;justify-content:space-between;flex-wrap:wrap;padding:13px 0;font-weight:700;font-size:12px;}
+.ec-certificate-footer {border-top:1px solid #d1dfed;padding-top:12px;font-size:10px;color:#62788b;}
+@media(max-width:720px){.ec-fields,.ec-checks,.ec-certificate-meta {grid-template-columns:1fr;}.ec-certificate-toolbar {display:block;}.ec-certificate-toolbar .button{margin-top:10px;}}
+@media print {
+  @page {size:A4; margin:14mm;}
+  body * {visibility:hidden!important;}
+  #picc-print-certificate,#picc-print-certificate * {visibility:visible!important;}
+  #picc-print-certificate {position:absolute;top:0;left:0;width:100%;box-sizing:border-box;border:0;padding:0;box-shadow:none;font-family:Arial, sans-serif;}
+  .ec-certificate-banner,.ec-table th {print-color-adjust:exact;-webkit-print-color-adjust:exact;}
+  .ec-table tr {break-inside:avoid;}
+}

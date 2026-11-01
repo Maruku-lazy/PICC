@@ -234,3 +234,188 @@
 
 /* Keep document previews enabled when an application is read-only. */
 .document-preview-fieldset { margin: 20px 0; }
+
+/* Phase 3.1: optional Registrar-side OCR panel inside the existing modal. */
+.document-preview-modal-with-ocr { width: min(1180px, 100%); }
+.document-preview-content { flex: 1; min-height: 0; overflow: auto; }
+.document-preview-content-with-ocr { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr); }
+.document-preview-content-with-ocr .document-preview-body { min-width: 0; min-height: 300px; }
+.document-preview-content-with-ocr .document-preview-image { max-height: 65dvh; }
+.document-ocr-panel { background: #fff; padding: 20px; border-left: 1px solid #dce7f2; min-width: 0; overflow: auto; max-height: 75dvh; color: #14345b; }
+.document-ocr-heading { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 18px; }
+.document-ocr-heading svg { color: #124c8c; flex-shrink: 0; }
+.document-ocr-heading h3 { margin: 0 0 5px; font-size: 15px; }
+.document-ocr-heading p { margin: 0; color: #657d97; font-size: 11px; }
+.document-ocr-run { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 42px; background: #124c8c; color: #fff; border: 0; border-radius: 9px; font-weight: 700; font-size: 12px; cursor: pointer; }
+.document-ocr-run:hover:not(:disabled) { background: #0b386b; }
+.document-ocr-run:disabled { opacity: 0.65; cursor: wait; }
+.document-ocr-progress { margin-top: 15px; display: grid; gap: 7px; font-size: 12px; }
+.document-ocr-progress progress { width: 100%; accent-color: #124c8c; }
+.document-ocr-error { color: #a23931; background: #fff0ee; border: 1px solid #f9ceca; border-radius: 8px; padding: 10px; font-size: 12px; overflow-wrap: anywhere; }
+.document-ocr-output { margin-top: 16px; border: 1px solid #d8e4f2; border-radius: 10px; overflow: hidden; }
+.document-ocr-output-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #f1f6fc; padding: 10px 12px; font-size: 12px; }
+.document-ocr-output-heading button { display: flex; align-items: center; gap: 5px; border: 1px solid #cbdbea; border-radius: 7px; color: #124c8c; background: white; padding: 6px 9px; cursor: pointer; font-size: 11px; }
+.document-ocr-output pre { margin: 0; padding: 13px; font-family: inherit; font-size: 12px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 42dvh; overflow-y: auto; user-select: text; }
+.document-ocr-output p { padding: 12px; margin: 0; font-size: 12px; }
+.document-ocr-note, .document-ocr-placeholder, .document-ocr-disclaimer { font-size: 11px; color: #657d97; line-height: 1.6; }
+.document-ocr-disclaimer { margin-top: 20px; padding-top: 12px; border-top: 1px solid #dce7f2; }
+@media (max-width: 800px) {
+  .document-preview-content-with-ocr { grid-template-columns: minmax(0, 1fr); }
+  .document-ocr-panel { border-left: 0; border-top: 1px solid #dce7f2; max-height: none; }
+  .document-preview-content-with-ocr .document-preview-image { max-height: 45dvh; }
+}
+
+/* Phase 3.2 — Conservative Registrar-only OCR comparison results */
+.screening-comparison { margin-top: 18px; border: 1px solid #d7e4f2; border-radius: 11px; overflow: hidden; }
+.screening-comparison-header { padding: 13px 12px 9px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; background: #f5f9ff; }
+.screening-comparison-header h4 { margin: 0; font-size: 13px; font-weight: 800; color: #14345b; }
+.screening-review-only { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 750; color: #805710; }
+.screening-counts { padding: 10px 12px; display: flex; gap: 6px; flex-wrap: wrap; border-bottom: 1px solid #e2ebf5; background: #f5f9ff; }
+.screening-count { display: inline-block; padding: 5px 8px; font-size: 10px; font-weight: 750; border-radius: 30px; }
+.screening-matched { color: #04734e; background: #e2f6ed; }
+.screening-mismatch { color: #9d5912; background: #fff0d4; }
+.screening-review { color: #385a7c; background: #e9f1fa; }
+.screening-finding-list { padding: 12px; display: grid; gap: 11px; }
+.screening-finding { border: 1px solid #dce7f4; border-radius: 9px; padding: 12px; background: #fff; }
+.screening-finding.screening-matched { border-left: 3px solid #07865e; }
+.screening-finding.screening-possible_mismatch { border-left: 3px solid #cf852c; }
+.screening-finding.screening-needs_review { border-left: 3px solid #8da3bd; }
+.screening-finding-title { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 8px; font-size: 12px; color: #153a64; }
+.screening-finding-title span { font-size: 10px; display: inline-flex; align-items: center; gap: 4px; font-weight: 750; color: #385a7c; }
+.screening-matched .screening-finding-title span { color: #07865e; }
+.screening-possible_mismatch .screening-finding-title span { color: #a46817; }
+.screening-values { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin: 12px 0 8px; }
+.screening-values div { background: #f3f7fc; padding: 8px; border-radius: 7px; min-width: 0; overflow-wrap: anywhere; }
+.screening-values dt { font-size: 10px; color: #647c95; margin-bottom: 5px; }
+.screening-values dd { font-size: 11px; color: #153a64; margin: 0; font-weight: 700; }
+.screening-finding p, .screening-disclaimer p { margin: 8px 0 0; font-size: 11px; line-height: 1.55; color: #667e98; }
+.screening-disclaimer { padding: 10px 12px 14px; background: #f5f9ff; border-top: 1px solid #e2ebf5; }
+@media (max-width: 480px) { .screening-values { grid-template-columns: 1fr; } }
+
+/* Phase 3.3 — persistent, append-only OCR screening history */
+.screening-history{margin-top:18px;padding-top:15px;border-top:1px solid #d7e4f1;display:grid;gap:11px;min-width:0}
+.screening-history-title{display:flex;align-items:center;gap:8px;color:#14345b}
+.screening-history-title h4{margin:0;font-size:14px}
+.screening-history-intro{font-size:11px;color:#587289;line-height:1.55;margin:0}
+.screening-history-entry{border:1px solid #d7e4f1;border-radius:10px;background:white;overflow:hidden;min-width:0}
+.screening-history-entry-toggle{border:0;background:#f5f8fd;padding:11px 12px;display:flex;justify-content:space-between;gap:12px;align-items:center;width:100%;text-align:left;cursor:pointer;color:#153a62}
+.screening-history-entry-toggle>span:first-child{min-width:0;display:flex;flex-direction:column;gap:3px}
+.screening-history-entry-toggle strong{font-size:11px}
+.screening-history-entry-toggle small{font-size:10px;color:#5b748e;line-height:1.5}
+.screening-current,.screening-stale{font-size:10px;border-radius:20px;padding:4px 8px;white-space:nowrap;font-weight:700}
+.screening-current{color:#0a6e4c;background:#dff4e9}
+.screening-stale{color:#815520;background:#fcf0d5}
+.screening-history-entry-body{padding:12px;display:grid;gap:12px;min-width:0}
+.screening-history-entry-body h5{margin:5px 0 0;color:#153a62;font-size:12px}
+.screening-review-record{background:#f4f7fc;border-left:3px solid #4379b4;padding:9px 11px;border-radius:6px;display:grid;gap:5px;font-size:11px}
+.screening-review-record small{color:#687f96}
+.screening-review-record p{margin:0;color:#3b5771;overflow-wrap:anywhere;white-space:pre-wrap}
+.screening-review-form{display:grid;gap:10px;padding:13px;background:#f7f9fd;border:1px solid #d7e4f1;border-radius:9px}
+.screening-review-form .button{justify-content:center;display:inline-flex;gap:7px;align-items:center}
+.screening-history-notice{background:#e5f5eb;border:1px solid #b4e1c6;color:#0c754e;border-radius:8px;padding:8px 10px;font-size:11px;margin:0}
+@media (max-width:520px){.screening-history-entry-toggle{flex-direction:column;align-items:flex-start}}
+
+/* Phase 3.4 — read-only completeness and screening-readiness dashboard */
+.document-audit{border:1px solid #d6e4f1;border-radius:12px;padding:16px;margin:0 0 20px;background:#f8fbff;color:#173a61}
+.document-audit-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:13px}
+.document-audit-heading{display:flex;align-items:flex-start;gap:9px;min-width:0}
+.document-audit-heading>svg{color:#124c8c;flex-shrink:0}
+.document-audit-heading h3{margin:0 0 4px;font-size:14px}
+.document-audit-heading p,.document-audit-note{margin:0;color:#5d748c;font-size:11px;line-height:1.6}
+.document-audit-refresh{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid #b9cfe5;color:#124c8c;border-radius:8px;padding:7px 10px;font-weight:700;font-size:11px;cursor:pointer;flex-shrink:0}
+.document-audit-refresh:disabled{opacity:.55;cursor:wait}
+.document-audit-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:14px 0}
+.document-audit-stats>div{background:#fff;border:1px solid #dbe6f1;border-radius:9px;padding:10px;min-width:0;display:grid;gap:5px}
+.document-audit-stats strong{font-size:18px;line-height:1.2;color:#124c8c}
+.document-audit-stats span{font-size:10px;color:#607994;line-height:1.35}
+.document-audit-items{list-style:none;padding:0;margin:13px 0;display:grid;gap:7px}
+.document-audit-items li{border:1px solid #dce6f2;border-radius:8px;padding:10px 11px;background:#fff;min-width:0}
+.document-audit-row-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.document-audit-row-head strong{font-size:11px;color:#163c63}
+.document-audit-items small{display:block;font-size:10px;line-height:1.5;color:#657d95;margin-top:5px}
+.document-audit-badge{display:inline-flex;align-items:center;border:1px solid #cbdbea;border-radius:20px;padding:4px 7px;font-size:10px;font-weight:700;white-space:nowrap;color:#365875;background:#eef3f9}
+.document-audit-missing,.document-audit-reviewed_discrepancy{background:#ffedec;color:#a23931;border-color:#f0c6c1}
+.document-audit-awaiting_registrar,.document-audit-reviewed_inconclusive,.document-audit-re_screen{background:#fff2d9;color:#8b5612;border-color:#edd7ac}
+.document-audit-reviewed_clear{background:#e0f5e9;color:#0b7352;border-color:#b7e4cb}
+.document-audit-footnote{display:flex;align-items:flex-start;gap:6px;padding-top:11px;margin:0;border-top:1px solid #dce6f2;color:#5d748c;font-size:10px;line-height:1.6}
+.document-audit-footnote svg{flex-shrink:0;margin-top:1px}
+@media(max-width:760px){.document-audit-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.document-audit-header{flex-direction:column;align-items:stretch}.document-audit-refresh{align-self:flex-start}}
+
+/* Phase 3.4 layout refinement: show screening overview in the Registrar sidebar.
+   Scoped to the review page so Student document uploads are unaffected. */
+@media (min-width: 901px) {
+  .review-layout {
+    grid-template-columns: minmax(0, 1.65fr) minmax(300px, 1fr);
+  }
+  .review-layout .form-side {
+    /* Review actions stay available; the longer audit can scroll independently. */
+    max-height: calc(100dvh - 36px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    align-content: start;
+    padding-right: 4px;
+    scrollbar-width: thin;
+  }
+}
+
+.review-layout .form-side > .document-audit {
+  margin: 0;
+  padding: 15px;
+  min-width: 0;
+}
+.review-layout .document-audit-header {
+  flex-direction: column;
+  align-items: stretch;
+}
+.review-layout .document-audit-refresh {
+  align-self: flex-start;
+}
+.review-layout .document-audit-stats {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.review-layout .document-audit-items li,
+.review-layout .document-audit-heading,
+.review-layout .document-audit-row-head {
+  min-width: 0;
+}
+.review-layout .document-audit-row-head strong,
+.review-layout .document-audit-items small {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 900px) {
+  .review-layout .form-side {
+    max-height: none;
+    overflow: visible;
+  }
+}
+/* Phase 3.5: automatic OCR state and per-document Registrar final verdicts */
+.picc-auto-status{display:block;font-size:10px;line-height:1.4;color:#617892}
+.picc-auto-complete{color:#087650;font-weight:700}
+.picc-auto-failed{color:#a23931;font-weight:700}
+.picc-auto-pending{color:#a46817}
+.picc-verdict-actions{display:grid;gap:9px;margin-top:10px;border-top:1px solid #e0e8f1;padding-top:9px;min-width:0}
+.picc-verdict-preview{display:flex;align-items:center;gap:8px}
+.picc-ai-findings{border:1px solid #dce6f2;border-radius:8px;padding:9px;background:#f8fbff;min-width:0}
+.picc-ai-findings summary{cursor:pointer;color:#124c8c;font-size:10px;font-weight:750;line-height:1.5}
+.picc-ai-findings .screening-comparison{margin-top:9px}
+.picc-verdict-fields{display:grid;gap:8px;min-width:0}
+.picc-verdict-fields .form-field{min-width:0}
+.picc-verdict-fields select,.picc-verdict-fields textarea{font-size:11px;min-width:0;width:100%}
+.picc-verdict-save{width:100%;min-height:35px;font-size:11px;white-space:normal}
+.picc-verdict-previous{font-size:10px;line-height:1.5;color:#3b5771;margin:0;overflow-wrap:anywhere}
+.document-audit-passed{background:#e0f5e9;color:#0b7352;border-color:#b7e4cb}
+.document-audit-failed,.document-audit-failed_auto{background:#ffedec;color:#a23931;border-color:#f0c6c1}
+.document-audit-needs_followup,.document-audit-pending_auto{background:#fff2d9;color:#8b5612;border-color:#edd7ac}
+
+/* Phase 3.6 — OCR quality diagnostics are advisory, not an accuracy score. */
+.screening-quality{padding:11px 12px;border-bottom:1px solid #dde7f2;background:#eef7f2;color:#174e39;display:grid;gap:7px;min-width:0}
+.screening-quality-review_required{background:#fff6e7;color:#7d5018}
+.screening-quality>strong{font-size:11px}
+.screening-quality dl{margin:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.screening-quality dl>div{padding:7px;background:rgba(255,255,255,.76);border-radius:6px;min-width:0}
+.screening-quality dt{font-size:9px;line-height:1.35;opacity:.85}
+.screening-quality dd{margin:3px 0 0;font-size:11px;font-weight:750;overflow-wrap:anywhere}
+.screening-quality p{font-size:10px;margin:0;line-height:1.5}
+.screening-quality small{font-size:10px;line-height:1.45;color:inherit}
+@media(max-width:430px){.screening-quality dl{grid-template-columns:1fr}}

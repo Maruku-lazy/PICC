@@ -7,6 +7,8 @@ import ApplicationPage from './pages/ApplicationPage';
 import RegistrarDashboard from './pages/RegistrarDashboard';
 import RegistrarApplication from './pages/RegistrarApplication';
 import RoadmapPage from './pages/RoadmapPage';
+import AcademicManagement from './pages/AcademicManagement';
+import CurriculumManagement from './pages/CurriculumManagement';
 import type { DemoRole } from './types';
 
 function Protected({ expected, children }: { expected: DemoRole; children: React.ReactNode }) {
@@ -27,6 +29,8 @@ export default function App() {
       <Route path="/student/application" element={<Protected expected="student"><ApplicationPage /></Protected>} />
       <Route path="/registrar/dashboard" element={<Protected expected="registrar"><RegistrarDashboard /></Protected>} />
       <Route path="/registrar/applications/:id" element={<Protected expected="registrar"><RegistrarApplication /></Protected>} />
+      <Route path="/registrar/academics" element={<Protected expected="registrar"><AcademicManagement /></Protected>} />
+      <Route path="/registrar/curricula" element={<Protected expected="registrar"><CurriculumManagement /></Protected>} />
       <Route path="/registrar/roadmap" element={<Protected expected="registrar"><RoadmapPage /></Protected>} />
       <Route path="*" element={<Navigate to={role ? `/${role}/dashboard` : '/login'} replace />} />
     </Routes>

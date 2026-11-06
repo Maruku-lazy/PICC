@@ -47,3 +47,109 @@
   .ec-certificate-banner,.ec-table th {print-color-adjust:exact;-webkit-print-color-adjust:exact;}
   .ec-table tr {break-inside:avoid;}
 }
+
+/* ------------------------------------------------------------
+   Registrar enrollment confirmation: balanced, inset layout.
+   Scoped to .ec-panel so the student COR and other pages do not
+   inherit these changes.
+   ------------------------------------------------------------ */
+.ec-panel {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none; /* Match Subject Assignment card width */
+  min-width: 0;
+  margin: 20px 0 0; /* No horizontal auto margins */
+  padding: clamp(20px, 2.5vw, 30px);
+}
+
+.ec-panel > .section-heading {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.ec-panel > .section-heading > div { min-width: 0; }
+.ec-panel > .section-heading h2 { line-height: 1.4; }
+.ec-panel > .section-heading .eyebrow { margin-bottom: 8px; }
+
+.ec-panel > .muted {
+  margin: 0 0 20px;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.ec-panel > .ec-fields {
+  margin: 0 0 18px;
+  gap: 16px;
+}
+
+.ec-panel .ec-field { gap: 8px; line-height: 1.45; }
+.ec-panel .ec-field input,
+.ec-panel .ec-field select,
+.ec-panel .ec-field textarea {
+  min-height: 43px;
+  padding: 11px 12px;
+  line-height: 1.45;
+}
+
+.ec-panel .ec-field textarea { min-height: 94px; }
+
+.ec-panel > .ec-divider { margin: 28px 0 22px; }
+.ec-panel > h3 { margin: 0 0 14px; }
+
+.ec-panel > .ec-checks {
+  gap: 10px;
+  margin: 0 0 18px;
+}
+
+.ec-panel .ec-checks > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 11px 13px;
+  line-height: 1.45;
+}
+
+.ec-panel .ec-checks > div > span {
+  flex: 0 0 15px;
+  margin-right: 0;
+  text-align: center;
+}
+
+.ec-panel > .ec-attestation {
+  align-items: flex-start;
+  gap: 11px;
+  margin: 22px 0 16px;
+  line-height: 1.6;
+}
+
+.ec-panel > .ec-attestation input {
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  flex: 0 0 16px;
+  accent-color: #124c8c;
+}
+
+.ec-panel > .ec-hint {
+  max-width: 760px;
+  margin: 15px 0 0;
+}
+
+@media (max-width: 720px) {
+  .ec-panel { padding: 20px; }
+  .ec-panel > .ec-fields,
+  .ec-panel > .ec-checks { grid-template-columns: minmax(0, 1fr); }
+  .ec-panel .ec-span { grid-column: auto; }
+}
+
+@media (max-width: 480px) {
+  .ec-panel { padding: 17px; }
+  .ec-panel > .section-heading { align-items: flex-start; }
+  .ec-panel > .section-heading h2 { font-size: 15px; }
+  .ec-panel > .ec-fields { gap: 13px; }
+  .ec-panel > .button { width: 100%; }
+  .ec-panel .ec-refresh { max-width: 100%; }
+}

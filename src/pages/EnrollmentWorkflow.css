@@ -1,0 +1,37 @@
+/* Student's two-page enrollment workflow and Registrar's four-page review.
+   Scoped to workflow classes to preserve existing page/card layout. */
+.workflow-student-tabs,.workflow-registrar-tabs{display:grid;gap:12px;margin:0 0 25px}
+.workflow-student-tabs{grid-template-columns:repeat(2,minmax(0,1fr));max-width:1100px}
+.workflow-registrar-tabs{grid-template-columns:repeat(4,minmax(0,1fr))}
+.workflow-student-tab,.workflow-registrar-tab{min-width:0;display:flex;align-items:center;gap:11px;padding:16px 17px;border:1px solid #dbe6f2;border-radius:13px;background:#fff;color:#43617e;text-decoration:none;transition:border-color .15s,background .15s,box-shadow .15s}
+.workflow-student-tab:hover,.workflow-registrar-tab:hover{border-color:#99bcdf;background:#f8fbff}
+.workflow-student-tab.active,.workflow-registrar-tab.active{background:#edf5ff;border-color:#82aee1;box-shadow:inset 0 0 0 1px #9ac0ed;color:#123e72}
+.workflow-tab-number{display:grid;place-items:center;width:31px;height:31px;min-width:31px;border-radius:50%;background:#eaf1f9;color:#194e87;font-size:13px;font-weight:800}
+.active .workflow-tab-number{background:#124c8c;color:#fff}
+.workflow-student-tab strong,.workflow-registrar-tab strong{display:block;font-size:12px;line-height:1.4}
+.workflow-student-tab small,.workflow-registrar-tab small{display:block;margin-top:3px;font-size:10px;line-height:1.4;color:#69819a}
+.workflow-tab-label{flex:1;min-width:0}
+.workflow-step-intro{margin:0 0 18px}
+.workflow-step-intro h2{margin:0 0 7px;font-size:19px;color:#14345b}
+.workflow-step-intro p{margin:0;color:#647f98;font-size:12px;line-height:1.6}
+.workflow-document-page,.workflow-feature-page{width:100%;min-width:0;display:grid;gap:20px}
+.workflow-document-page>.form-card{width:100%}
+.workflow-audit-card{padding:26px 29px;min-width:0}
+.workflow-audit-card .document-audit{background:transparent;border:0;padding:0;margin:0}
+.workflow-audit-card .document-audit-stats{grid-template-columns:repeat(4,minmax(0,1fr))}
+.workflow-audit-card .document-audit-items{gap:14px}
+.workflow-audit-card .document-audit-items>li{padding:18px 20px}
+.workflow-audit-card .document-audit-row-head strong{font-size:13px}
+.workflow-audit-card .document-audit-items small{font-size:11px}
+.workflow-audit-card .picc-verdict-actions{grid-template-columns:minmax(0,1fr);gap:14px}
+.workflow-audit-card .picc-verdict-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.workflow-audit-card .picc-verdict-fields>.form-field:nth-child(3),.workflow-audit-card .picc-verdict-save{grid-column:1/-1}
+.workflow-step-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:24px;flex-wrap:wrap}
+.workflow-document-actions{margin-top:10px}
+.workflow-feature-page>.ec-panel,.workflow-feature-page>.sa-panel{max-width:none;width:100%;margin:0;min-width:0}
+@media(max-width:1100px){.workflow-registrar-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:680px){.workflow-student-tabs,.workflow-registrar-tabs{grid-template-columns:1fr;gap:8px}.workflow-student-tab,.workflow-registrar-tab{padding:12px}.workflow-audit-card{padding:19px}.workflow-audit-card .document-audit-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.workflow-audit-card .picc-verdict-fields{grid-template-columns:1fr}.workflow-step-footer>.button{width:100%;justify-content:center}}
+
+.workflow-student-dashboard-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:18px}
+.workflow-student-dashboard-actions .button{white-space:normal}
+@media(max-width:680px){.workflow-student-dashboard-actions .button{width:100%;justify-content:center}}

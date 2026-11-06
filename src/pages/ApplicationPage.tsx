@@ -11,8 +11,9 @@ import {
 } from '../types';
 import { getDocumentRequirements, ID_PHOTO_REQUIREMENT } from '../data/documentRequirements';
 import './DocumentUploads.css';
+import './EnrollmentWorkflow.css';
 import DocumentPreview from '../components/DocumentPreview';
-import { findMyApplicationId, listApplicationDocuments, uploadApplicationDocument, removeApplicationDocument, type ApplicationDocument } from '../services/documentService';
+import { findMyApplicationId, listApplicationDocuments, uploadApplicationDocument, removeApplicationDocument, reconcileMyPiccStorageCleanup, type ApplicationDocument } from '../services/documentService';
 import { screenUploadedDocument } from '../services/autoScreeningService';
 
 type TextKey = Exclude<keyof ApplicationInput, 'declarationConfirmed' | 'documentUploads'>;
@@ -138,11 +139,12 @@ function validate(form: ApplicationInput): string[] {
   if (form.academicYear && !/^\d{4}\s*[-–]\s*\d{4}$/.test(form.academicYear.trim())) {
     errors.push('Academic year must use a format like 2026-2027.');
   }
+  if (form.studentType === 'returning') errors.push('Returning-student enrollment is not yet available; requirements must be approved by PiCC.');
   if (!form.declarationConfirmed) errors.push('Check the applicant declaration before submitting.');
   return errors;
 }
 
-export default function ApplicationPage() {
+export default function ApplicationPage({ view = 'form' }: { view?: 'form' | 'documents' }) {
   const { applications, saveApplication, userId, isSupabase, dataLoading } = useDemo();
   const navigate = useNavigate();
   const app = applications.find((a) => a.studentId === userId);
@@ -156,6 +158,8 @@ export default function ApplicationPage() {
   const [ocrStatus, setOcrStatus] = useState('');
   const [documentNotice, setDocumentNotice] = useState('');
   const editable = !app || app.status === 'draft' || app.status === 'needs_correction';
+
+  useEffect(() => { window.scrollTo(0, 0); }, [view]);
 
   useEffect(() => {
     if (app) setForm(restoreForm(app));
@@ -172,6 +176,13 @@ export default function ApplicationPage() {
     });
     return () => { cancelled = true; };
   }, [isSupabase, applicationId]);
+
+  useEffect(() => {
+    if (!isSupabase || !userId) return;
+    void reconcileMyPiccStorageCleanup().catch(error => {
+      console.warn('Old document cleanup will be retried later:', error);
+    });
+  }, [isSupabase, userId]);
 
   async function reloadDocuments(id: string) {
     const documents = await listApplicationDocuments(id);
@@ -193,6 +204,7 @@ export default function ApplicationPage() {
 
   async function handleDocumentSelection(documentName: string, file: File | undefined) {
     if (!file || uploadingRequirement) return;
+    if (!app) { setErrors(['Save an enrollment form draft before uploading requirements.']); return; }
     const validExtension = /\.(jpe?g|png|pdf)$/i.test(file.name);
     const acceptedMime = ['image/jpeg', 'image/png', 'application/pdf'];
     if (!validExtension || (isSupabase && !acceptedMime.includes(file.type)) ||
@@ -298,9 +310,11 @@ export default function ApplicationPage() {
     setUploadingRequirement(documentName);
     setErrors([]); setDocumentNotice('');
     try {
-      await removeApplicationDocument(document);
+      const result = await removeApplicationDocument(document);
       await reloadDocuments(document.application_id);
-      setDocumentNotice(`${documentName} removed.`);
+      setDocumentNotice(result.cleanupPending
+        ? `${documentName} removed from the application. Secure file cleanup is queued and will retry.`
+        : `${documentName} removed.`);
     } catch (cause) {
       setErrors([cause instanceof Error ? cause.message : 'Could not remove the scanned document.']);
     } finally {
@@ -314,7 +328,10 @@ export default function ApplicationPage() {
     // are disabled. Never submit while a file upload or OCR scan is active.
     if (!editable || saving || uploadingRequirement) return;
     const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLElement | null;
-    const submit = submitter?.getAttribute('data-intent') === 'submit';
+    const intent = submitter?.getAttribute('data-intent');
+    const submit = intent === 'submit';
+    if (submit && view !== 'documents') return;
+    if (submit && !app) { setErrors(['Save your enrollment form first, then upload the required documents.']); return; }
     const issues = submit ? validate(form) : [];
     if (issues.length) {
       setErrors(issues);
@@ -331,6 +348,7 @@ export default function ApplicationPage() {
     try {
       await saveApplication(output, submit);
       if (submit) navigate('/student/dashboard');
+      else if (intent === 'continue') navigate('/student/documents');
       else setSaved(true);
     } catch (error) {
       setErrors([error instanceof Error ? error.message : 'Could not save application.']);
@@ -352,12 +370,25 @@ export default function ApplicationPage() {
       <div className="page-header">
         <div>
           <Link to="/student/dashboard" className="back-link"><ArrowLeft size={16} /> Back to dashboard</Link>
-          <div className="eyebrow">ENROLLMENT APPLICATION · PiCC F2-INSPIRED</div>
-          <h1>{app ? 'My enrollment application' : 'New enrollment application'}</h1>
-          <p className="muted">Complete the sections using fictional information for development testing.</p>
+          <div className="eyebrow">STUDENT ENROLLMENT · {view === 'form' ? 'STEP 1 OF 2' : 'STEP 2 OF 2'}</div>
+          <h1>{view === 'form' ? 'Enrollment form' : 'Documentary requirements'}</h1>
+          <p className="muted">{view === 'form' ? 'Complete and save your application details before uploading documents.' : 'Upload scanned requirements, review their status, then submit your application.'}</p>
         </div>
         <span className="page-icon"><ClipboardList size={28} /></span>
       </div>
+
+      <nav className="workflow-student-tabs" aria-label="Student enrollment steps">
+        <Link to="/student/application" aria-current={view === 'form' ? 'step' : undefined} className={`workflow-student-tab ${view === 'form' ? 'active' : ''}`}>
+          <span className="workflow-tab-number">1</span><span><strong>Enrollment form</strong><small>Personal and academic details</small></span>
+        </Link>
+        <Link to="/student/documents" aria-current={view === 'documents' ? 'step' : undefined} className={`workflow-student-tab ${view === 'documents' ? 'active' : ''}`} onClick={event => {
+          if (!app) { event.preventDefault(); setErrors(['Please save an enrollment form draft first.']); }
+          else if (view === 'form' && JSON.stringify(form) !== JSON.stringify(restoreForm(app)) && !window.confirm('You have unsaved form changes. Continue without saving them?')) event.preventDefault();
+        }}>
+          <span className="workflow-tab-number">2</span><span><strong>Documentary requirements</strong><small>Uploads and AI screening</small></span>
+        </Link>
+      </nav>
+      {view === 'documents' && !app && <div className="notice-warning" role="alert">Save an enrollment form draft before uploading requirements. <Link to="/student/application">Go to enrollment form</Link></div>}
 
       {errors.length > 0 && (
         <div className="notice-error enrollment-errors" role="alert">
@@ -366,8 +397,8 @@ export default function ApplicationPage() {
         </div>
       )}
       {saved && <div className="notice-success" role="status"><CheckCircle2 size={18} /> {isSupabase ? 'Draft saved in Supabase.' : 'Draft saved in this browser.'}</div>}
-      {documentNotice && <div className="soft-panel" role="status"><Info size={18} /> {documentNotice}</div>}
-      {ocrStatus && <div className="soft-panel" role="status"><Info size={18}/>{ocrStatus}</div>}
+      {view === 'documents' && documentNotice && <div className="soft-panel" role="status"><Info size={18} /> {documentNotice}</div>}
+      {view === 'documents' && ocrStatus && <div className="soft-panel" role="status"><Info size={18}/>{ocrStatus}</div>}
       {app?.status === 'needs_correction' && (
         <div className="notice-warning"><strong>Registrar requested a correction</strong><p>{app.reviewerNote}</p></div>
       )}
@@ -380,7 +411,7 @@ export default function ApplicationPage() {
       <div className="form-layout">
         <div className="form-main">
           <form id="student-enrollment-form" onSubmit={handleSubmit} noValidate>
-            <fieldset className="plain-fieldset" disabled={!editable || saving}>
+            {view === 'form' && <fieldset className="plain-fieldset" disabled={!editable || saving}>
               <FormSection icon={<BookOpen size={19} />} title="1. Enrollment information" description="Select the academic period and curriculum track.">
                 <div className="form-grid">
                   <label className="form-field"><span>Classification <b>*</b></span>
@@ -391,7 +422,7 @@ export default function ApplicationPage() {
                     }}>
                       <option value="freshman">Incoming freshman</option>
                       <option value="transferee">Transferee</option>
-                      <option value="returning">Returning student</option>
+                      <option value="returning" disabled>Returning student (requirements pending PiCC approval)</option>
                     </select>
                   </label>
                   <TextField field="academicYear" label="Academic year" required form={form} onChange={update} placeholder="2026-2027" />
@@ -485,9 +516,9 @@ export default function ApplicationPage() {
                 </div>
               </FormSection>
 
-            </fieldset>
+            </fieldset>}
 
-            <fieldset className="plain-fieldset document-preview-fieldset">
+            {view === 'documents' && app && <fieldset className="plain-fieldset document-preview-fieldset">
               <FormSection icon={<ClipboardList size={19} />} title="6. Documentary requirements" description={isSupabase ? "Upload your sample scanned requirements to private Supabase Storage." : "Choose a scanned image or PDF for each applicable document (demo only)."}>
                 {form.studentType === 'returning' ? (
                   <div className="soft-panel"><Info size={18} /><span>
@@ -578,9 +609,9 @@ export default function ApplicationPage() {
                 </span></div>
               </FormSection>
 
-            </fieldset>
+            </fieldset>}
 
-            <fieldset className="plain-fieldset" disabled={!editable || saving}>
+            {view === 'form' && <fieldset className="plain-fieldset" disabled={!editable || saving}>
               <FormSection icon={<ShieldAlert size={19} />} title="7. Review and declaration" description="Confirm your entries before sample submission.">
                 <label className="declaration-box">
                   <input
@@ -592,21 +623,33 @@ export default function ApplicationPage() {
                 </label>
                 <p className="field-hint">PiCC's actual data privacy notice, consent purposes, and signature procedure must be approved before processing real applicant information.</p>
               </FormSection>
-            </fieldset>
-            {editable && (
+            </fieldset>}
+            {editable && view === 'form' && (
               <div className="form-actions">
                 <button type="submit" disabled={saving || Boolean(uploadingRequirement)} data-intent="save" className="button button-secondary"><Save size={18} /> Save draft</button>
-                <button type="submit" disabled={saving || Boolean(uploadingRequirement)} data-intent="submit" className="button button-primary"><Send size={18} /> Submit sample application</button>
+                <button type="submit" disabled={saving || Boolean(uploadingRequirement)} data-intent="continue" className="button button-primary"><Upload size={18} /> Save & continue to documents</button>
+              </div>
+            )}
+            {view === 'documents' && app && (
+              <div className="form-actions workflow-document-actions">
+                <Link className="button button-secondary" to="/student/application"><ArrowLeft size={17}/> Back to enrollment form</Link>
+                {editable && <button type="submit" disabled={saving || Boolean(uploadingRequirement)} data-intent="submit" className="button button-primary"><Send size={18} /> Submit sample application</button>}
               </div>
             )}
           </form>
         </div>
         <aside className="form-side">
           <section className="surface-card help-card">
-            <div className="section-heading"><h2>Application guide</h2></div>
-            <div className="help-line"><CheckCircle2 size={18} /><span>Fields marked * are required before submission.</span></div>
-            <div className="help-line"><CheckCircle2 size={18} /><span>Save a draft at any point without completing the form.</span></div>
-            <div className="help-line"><CheckCircle2 size={18} /><span>Registrar staff can review submitted applications.</span></div>
+            <div className="section-heading"><h2>{view === 'form' ? 'Enrollment form guide' : 'Document upload guide'}</h2></div>
+            {view === 'form' ? <>
+              <div className="help-line"><CheckCircle2 size={18} /><span>Fields marked * are required before final submission.</span></div>
+              <div className="help-line"><CheckCircle2 size={18} /><span>Save a draft, then proceed to Documentary Requirements.</span></div>
+              <div className="help-line"><CheckCircle2 size={18} /><span>Make sure changes are saved before switching pages.</span></div>
+            </> : <>
+              <div className="help-line"><CheckCircle2 size={18} /><span>One scan per required document; JPG, PNG or PDF (except ID photo).</span></div>
+              <div className="help-line"><CheckCircle2 size={18} /><span>Keep this page open until automatic OCR finishes.</span></div>
+              <div className="help-line"><CheckCircle2 size={18} /><span>Submitting sends the application for Registrar review, not automatic approval.</span></div>
+            </>}
           </section>
           <section className="surface-card next-module-card">
             <div className="next-module-icon"><ShieldAlert size={23} /></div>

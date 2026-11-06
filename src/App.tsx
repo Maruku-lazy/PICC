@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { useDemo } from './context/DemoContext';
 import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import StudentDashboard from './pages/StudentDashboard';
 import ApplicationPage from './pages/ApplicationPage';
 import RegistrarDashboard from './pages/RegistrarDashboard';
@@ -25,10 +26,13 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={role ? <Navigate to={`/${role}/dashboard`} replace /> : <LoginPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/student/dashboard" element={<Protected expected="student"><StudentDashboard /></Protected>} />
-      <Route path="/student/application" element={<Protected expected="student"><ApplicationPage /></Protected>} />
+      <Route path="/student/application" element={<Protected expected="student"><ApplicationPage view="form" /></Protected>} />
+      <Route path="/student/documents" element={<Protected expected="student"><ApplicationPage view="documents" /></Protected>} />
       <Route path="/registrar/dashboard" element={<Protected expected="registrar"><RegistrarDashboard /></Protected>} />
       <Route path="/registrar/applications/:id" element={<Protected expected="registrar"><RegistrarApplication /></Protected>} />
+      <Route path="/registrar/applications/:id/:step" element={<Protected expected="registrar"><RegistrarApplication /></Protected>} />
       <Route path="/registrar/academics" element={<Protected expected="registrar"><AcademicManagement /></Protected>} />
       <Route path="/registrar/curricula" element={<Protected expected="registrar"><CurriculumManagement /></Protected>} />
       <Route path="/registrar/roadmap" element={<Protected expected="registrar"><RoadmapPage /></Protected>} />

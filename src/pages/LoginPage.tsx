@@ -121,12 +121,16 @@ export default function LoginPage() {
   }
 
   async function handlePasswordReset() {
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
+      setNotice({ kind: 'error', text: 'Enter your email address before requesting a reset.' }); return;
+    }
+    setBusy(true);
     try {
       await resetPassword(email);
-      setNotice({ kind: 'info', text: 'Check your email for recovery instructions.' });
+      setNotice({ kind: 'info', text: 'If that account exists, a password recovery link will be sent. Check your email.' });
     } catch (error) {
-      setNotice({ kind: 'info', text: error instanceof Error ? error.message : 'Recovery is not ready yet.' });
-    }
+      setNotice({ kind: 'error', text: error instanceof Error ? error.message : 'Could not request password recovery.' });
+    } finally { setBusy(false); }
   }
 
   return (

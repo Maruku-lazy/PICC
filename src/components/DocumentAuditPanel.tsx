@@ -6,6 +6,7 @@ import type { ApplicationDocument } from '../services/documentService';
 import type { ScreeningApplicant } from '../services/screeningService';
 import ScreeningComparison from './ScreeningComparison';
 import DocumentPreview from './DocumentPreview';
+import { fetchEnrollmentOutcome } from '../services/enrollmentConfirmationService';
 import {
   assessDocuments, fetchAuditHistory, recordDocumentVerdict,
   type AuditItem, type AuditReview, type AuditScreening, type DocumentVerdict,
@@ -23,7 +24,8 @@ function VerdictActions({item, applicationId, applicant, reviewable, onSaved}:{
   item:AuditItem; applicationId:string; applicant:ScreeningApplicant;
   reviewable:boolean; onSaved:()=>Promise<void>;
 }) {
-  const [choice,setChoice] = useState<DocumentVerdict['decision']>('passed');
+  const [choice,setChoice] = useState<DocumentVerdict['decision'] | ''>('');
+  const [inspected, setInspected] = useState(false);
   const [note,setNote] = useState('');
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState('');
@@ -33,6 +35,8 @@ function VerdictActions({item, applicationId, applicant, reviewable, onSaved}:{
   async function decide() {
     if(!doc || busy) return;
     setError(''); setSuccess('');
+    if(!choice) { setError('Select Pass, Fail, or Needs follow-up.'); return; }
+    if(!inspected) { setError('Open and manually inspect the actual scan before saving a decision.'); return; }
     if(choice!=='passed' && !note.trim()) {
       setError('Explain why the document failed or needs follow-up.'); return;
     }
@@ -40,7 +44,7 @@ function VerdictActions({item, applicationId, applicant, reviewable, onSaved}:{
     try {
       await recordDocumentVerdict(doc.id,doc.storage_path,choice,note.trim());
       await onSaved();
-      setNote('');setSuccess('Registrar decision saved.');
+      setChoice(''); setInspected(false); setNote('');setSuccess('Registrar decision saved.');
     } catch(cause) {
       setError(cause instanceof Error ? cause.message:'Could not record verdict.');
     } finally { setBusy(false); }
@@ -64,6 +68,7 @@ function VerdictActions({item, applicationId, applicant, reviewable, onSaved}:{
     {reviewable && <div className="picc-verdict-fields">
       <label className="form-field"><span>Final document decision</span>
         <select value={choice} disabled={busy} onChange={e=>setChoice(e.target.value as DocumentVerdict['decision'])}>
+          <option value="">Select a decision…</option>
           <option value="passed">Pass — manually inspected</option>
           <option value="failed">Fail — issue confirmed</option>
           <option value="needs_followup">Needs follow-up</option>
@@ -73,7 +78,9 @@ function VerdictActions({item, applicationId, applicant, reviewable, onSaved}:{
         <textarea rows={2} maxLength={2000} value={note} disabled={busy}
           onChange={e=>setNote(e.target.value)} placeholder="Record what you saw in the uploaded document"/>
       </label>
-      <button type="button" className="button button-primary picc-verdict-save" disabled={busy}
+      <label className="form-field"><span><input type="checkbox" checked={inspected} disabled={busy}
+          onChange={e => setInspected(e.target.checked)} /> I inspected the uploaded file, not just the AI result.</span></label>
+      <button type="button" className="button button-primary picc-verdict-save" disabled={busy || !choice || !inspected}
         onClick={()=>void decide()}>{busy?'Saving…':'Save final document decision'}</button>
     </div>}
     {error && <p className="document-ocr-error" role="alert">{error}</p>}
@@ -88,11 +95,15 @@ export default function DocumentAuditPanel({
   const [reviews,setReviews]=useState<AuditReview[]>([]);
   const [verdicts,setVerdicts]=useState<DocumentVerdict[]>([]);
   const [loading,setLoading]=useState(true);
+  const [finalized,setFinalized]=useState(false);
   const [refreshing,setRefreshing]=useState(false);
   const [error,setError]=useState('');
   const refreshAudit=useCallback(async()=>{
-    const next=await fetchAuditHistory(applicationId);
+    const [next,outcome]=await Promise.all([
+      fetchAuditHistory(applicationId), fetchEnrollmentOutcome(applicationId),
+    ]);
     setScreenings(next.screenings);setReviews(next.reviews);setVerdicts(next.verdicts);
+    setFinalized(!!outcome.confirmation);
   },[applicationId]);
   const refresh=useCallback(async(silent=false)=>{
     await Promise.all([refreshDocuments(silent),refreshAudit()]);
@@ -100,8 +111,8 @@ export default function DocumentAuditPanel({
   useEffect(()=>{
     let active=true;
     setLoading(true);setError('');
-    void fetchAuditHistory(applicationId).then(data=>{
-      if(active){setScreenings(data.screenings);setReviews(data.reviews);setVerdicts(data.verdicts);}
+    void Promise.all([fetchAuditHistory(applicationId),fetchEnrollmentOutcome(applicationId)]).then(([data,outcome])=>{
+      if(active){setScreenings(data.screenings);setReviews(data.reviews);setVerdicts(data.verdicts);setFinalized(!!outcome.confirmation);}
     }).catch(cause=>{if(active)setError(cause instanceof Error?cause.message:'Cannot load AI summary.');})
       .finally(()=>{if(active)setLoading(false);});
     return ()=>{active=false};
@@ -133,6 +144,7 @@ export default function DocumentAuditPanel({
         onClick={()=>void manualRefresh()}><RefreshCw size={14}/> Refresh</button>
     </div>
     {pending&&<p className="document-audit-note" role="status">Updating document screening results…</p>}
+    {finalized && <p className="document-audit-note">Final enrollment is confirmed. Document decisions are locked.</p>}
     {(error||documentsError)&&<p className="document-ocr-error" role="alert">{error||documentsError}</p>}
     {!pending&&!error&&!documentsError&&<>
       <div className="document-audit-stats" aria-label="Document summary">
@@ -148,7 +160,7 @@ export default function DocumentAuditPanel({
         </div>
         <small>{item.detail}</small>
         {item.document&&<VerdictActions key={`${item.document.id}:${item.document.storage_path}`}
-          item={item} applicationId={applicationId} applicant={applicant} reviewable={reviewable}
+          item={item} applicationId={applicationId} applicant={applicant} reviewable={reviewable && !finalized}
           onSaved={refreshAudit}/>}
       </li>)}</ul>
       <p className="document-audit-footnote"><AlertCircle size={14}/>

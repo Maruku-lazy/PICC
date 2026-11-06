@@ -3,8 +3,8 @@
  * enrolled applicant's form. This is decision support, NOT identity proof,
  * document authenticity verification, or an automatic approval mechanism.
  *
- * Only explicitly labeled fields are considered. Unlabeled/unreadable text
- * becomes "needs_review" rather than a fabricated mismatch or match.
+ * Exact complete applicant names may be detected with or without a label;
+ * names with partial or ambiguous OCR evidence require manual review.
  */
 
 import type { ApplicationInput } from '../types';
@@ -37,11 +37,18 @@ export type ScreeningResult = {
   comparisonVersion?: string;
 };
 
-const FULL_NAME = /^(?:name of (?:the )?child|child'?s? (?:full )?name|student(?:'s)? (?:full )?name|applicant(?:'s)? (?:full )?name|name of student|full name|name)\s*[:\-–]\s*(.+)$/i;
-const NAME_LABEL_ONLY = /^(?:name of (?:the )?child|child'?s? (?:full )?name|student(?:'s)? (?:full )?name|applicant(?:'s)? (?:full )?name|name of student|full name|name)\s*:?$/i;
-const FIRST_NAME = /^(?:first|given)\s*name\s*[:\-–]\s*(.+)$/i;
-const MIDDLE_NAME = /^middle\s*name\s*[:\-–]\s*(.+)$/i;
-const LAST_NAME = /^(?:last|family|sur)\s*name\s*[:\-–]\s*(.+)$/i;
+// Philippine school and civil registry scans use different name labels. Keep these
+// anchored to avoid confusing a parent's/guardian's name for the applicant.
+const NAME_LABEL = String.raw`(?:name of (?:the )?(?:child|student|applicant|pupil|learner)|(?:child|student|applicant|pupil|learner)(?:'s)? (?:full |complete )?name|(?:full|complete) name|name)`;
+const FULL_NAME = new RegExp(`^${NAME_LABEL}\\s*[:=\\-–]\\s*(.+)$`, 'i');
+const NAME_LABEL_ONLY = new RegExp(`^${NAME_LABEL}\\s*[:=]?\\s*$`, 'i');
+const FIRST_NAME = /^(?:first|given)\s*(?:name|names?)\s*[:=\-–]\s*(.+)$/i;
+const MIDDLE_NAME = /^middle\s*(?:name|names?|initial)\s*[:=\-–]\s*(.+)$/i;
+const LAST_NAME = /^(?:last|family|sur|surname)\s*(?:name)?\s*[:=\-–]\s*(.+)$/i;
+const FIRST_LABEL_ONLY = /^(?:first|given)\s*name\s*:?$/i;
+const MIDDLE_LABEL_ONLY = /^middle\s*(?:name|initial)\s*:?$/i;
+const LAST_LABEL_ONLY = /^(?:last|family|sur)\s*name\s*:?$/i;
+const SURNAME_LABEL_ONLY = /^surname\s*:?$/i;
 const BIRTH_DATE = /^(?:date of (?:live )?birth|birth\s*date|date born|born on|dob)\s*[:\-–]\s*(.+)$/i;
 const BIRTH_DATE_ONLY = /^(?:date of (?:live )?birth|birth\s*date|date born|born on|dob)\s*:?$/i;
 const SEX = /^(?:sex|gender)\s*[:\-–]\s*(.+)$/i;
@@ -73,9 +80,11 @@ function readLabeledValue(lines: string[], inline: RegExp, labelOnly: RegExp): s
 function extractName(lines: string[]): string | null {
   const named = readLabeledValue(lines, FULL_NAME, NAME_LABEL_ONLY);
   if (named) return named;
-  const given = lines.map(line => line.match(FIRST_NAME)?.[1]).find(Boolean);
-  const family = lines.map(line => line.match(LAST_NAME)?.[1]).find(Boolean);
-  const middle = lines.map(line => line.match(MIDDLE_NAME)?.[1]).find(Boolean);
+  // OCR often puts the label and value on separate rows, or in a table.
+  const given = readLabeledValue(lines, FIRST_NAME, FIRST_LABEL_ONLY);
+  const family = readLabeledValue(lines, LAST_NAME, LAST_LABEL_ONLY)
+    ?? readLabeledValue(lines, LAST_NAME, SURNAME_LABEL_ONLY);
+  const middle = readLabeledValue(lines, MIDDLE_NAME, MIDDLE_LABEL_ONLY);
   if (given && family) return clean(`${given} ${middle ?? ''} ${family}`);
   return null;
 }
@@ -83,6 +92,37 @@ function extractName(lines: string[]): string | null {
 function normalName(value: string): string {
   return value.normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z\d ]/gi, ' ').replace(/\s+/g, ' ').trim().toUpperCase();
+}
+
+/**
+ * Look for a COMPLETE exact name, including multi-word surnames, without
+ * requiring a perfect OCR label. No fuzzy edit-distance matching: names such
+ * as ANN/ANNE or different last names must not become automatic matches.
+ * Allow first-middle-last and "LAST, FIRST MIDDLE" layouts. Scan at most
+ * three adjacent rows so separate document fields are not merged wholesale.
+ */
+function fullNameEvidence(lines: string[], applicant: ScreeningApplicant): string | null {
+  const first = normalName(applicant.firstName);
+  const last = normalName(applicant.lastName);
+  const middle = normalName(applicant.middleName);
+  const suffix = normalName(applicant.suffix);
+  if (!first || !last) return null;
+  const variants = [
+    [first, middle, last, suffix].filter(Boolean).join(' '),
+    [last, first, middle, suffix].filter(Boolean).join(' '),
+  ];
+  for (let i = 0; i < lines.length; i++) {
+    for (let count = 1; count <= 3 && i + count <= lines.length; count++) {
+      const section = lines.slice(i, i + count).join(' ');
+      const normalized = ` ${normalName(section)} `;
+      if (variants.some(variant => normalized.includes(` ${variant} `))) {
+        // Only the short piece containing the name is used as comparison
+        // evidence. Raw OCR text is not persisted in Supabase.
+        return variants.find(variant => normalized.includes(` ${variant} `)) ?? null;
+      }
+    }
+  }
+  return null;
 }
 
 function isoDate(y: number, m: number, d: number): string | null {
@@ -139,17 +179,35 @@ function needsReview(field: ScreeningField, label: string, expected: string, ext
 function compareName(lines: string[], applicant: ScreeningApplicant): ScreeningFinding {
   const expected = clean([applicant.firstName, applicant.middleName, applicant.lastName, applicant.suffix].filter(Boolean).join(' '));
   const extracted = extractName(lines);
-  if (!expected) return needsReview('fullName', 'Applicant name', expected, extracted, 'The application has no name to compare.');
-  if (!extracted) return needsReview('fullName', 'Applicant name', expected, null, 'OCR did not find a clearly labeled applicant/child name.');
+  if (!normalName(applicant.firstName) || !normalName(applicant.lastName)) {
+    return needsReview('fullName', 'Applicant name', expected, extracted, 'First and last names are required in the enrollment form for a reliable comparison.');
+  }
+  const fromLabel = extracted && [
+    [applicant.firstName, applicant.middleName, applicant.lastName, applicant.suffix],
+    [applicant.lastName, applicant.firstName, applicant.middleName, applicant.suffix],
+  ].some(parts => normalName(extracted) === normalName(parts.filter(Boolean).join(' ')));
+  const exactEvidence = fullNameEvidence(lines, applicant);
+  if (fromLabel || exactEvidence) {
+    return {
+      field: 'fullName', label: 'Applicant name', expected,
+      extracted: fromLabel ? extracted : exactEvidence,
+      status: 'matched',
+      explanation: fromLabel
+        ? 'Exact applicant name recognized in a labeled field. Preliminary OCR match only; inspect the original.'
+        : 'The complete applicant name appears in the OCR text, possibly without a readable label or in surname-first order. This is a preliminary text match; confirm that it identifies the student.',
+    };
+  }
+  if (!extracted) {
+    return needsReview('fullName', 'Applicant name', expected, null,
+      'The complete applicant name was not found in the OCR text. The scan may have split or misread the name; use the Registrar OCR re-check to inspect the recognized text.');
+  }
   const actualNorm = normalName(extracted);
-  const expectedNorm = normalName(expected);
   if (!actualNorm || actualNorm.split(' ').length < 2) {
     return needsReview('fullName', 'Applicant name', expected, extracted, 'The recognized name is incomplete.');
   }
-  if (actualNorm === expectedNorm) {
-    return { field: 'fullName', label: 'Applicant name', expected, extracted, status: 'matched', explanation: 'Recognized full name matches the entered name after basic normalization.' };
-  }
-  return { field: 'fullName', label: 'Applicant name', expected, extracted, status: 'possible_mismatch', explanation: 'Names differ. OCR errors or formatting may be responsible; inspect the document.' };
+  // A name with no reliable exact match is only a *possible* discrepancy.
+  // Other names (parents, guardians) can appear on the same document.
+  return { field: 'fullName', label: 'Applicant name', expected, extracted, status: 'possible_mismatch', explanation: 'The name found under a document label differs from the entered full name. OCR errors, missing middle names, and surname order may explain this; inspect the original.' };
 }
 
 function compareBirthDate(lines: string[], applicant: ScreeningApplicant): ScreeningFinding {
@@ -204,13 +262,17 @@ export function compareDocumentText(
     findings.push(compareBirthDate(lines, applicant), compareSex(lines, applicant));
   }
   const ocrQuality = diagnostics ? evaluateOcrQuality(ocrText, diagnostics) : undefined;
-  // A weak OCR run must never claim a verified match or even a reliable mismatch.
-  // Keep the extracted values visible so the Registrar can compare the original.
+  // Low *overall* confidence should not erase an exact full-name text match.
+  // This is a preliminary text observation, not automatic document approval.
+  // Uncertain date/sex findings and possible mismatches remain manual-review.
   if (ocrQuality?.status === 'review_required') {
     findings.forEach((finding) => {
-      if (finding.status !== 'needs_review') {
+      if (finding.status === 'possible_mismatch' ||
+        (finding.status === 'matched' && finding.field !== 'fullName')) {
         finding.status = 'needs_review';
         finding.explanation = `OCR quality needs manual verification. ${finding.explanation}`;
+      } else if (finding.status === 'matched') {
+        finding.explanation = `${finding.explanation} Overall OCR confidence is low; verify visually.`;
       }
     });
   }
@@ -218,12 +280,12 @@ export function compareDocumentText(
     'These are preliminary OCR comparisons, not proof of document authenticity.',
     'A missing/unreadable field needs human review; do not treat it as a failed verification.',
   ];
-  if (!isBirthCertificate) notes.push('This document type currently checks only an explicitly labeled applicant name.');
+  if (!isBirthCertificate) notes.push('This document type checks name text only, including exact complete names detected without a readable label.');
   if (ocrQuality) notes.push('Tesseract confidence is an internal engine score, NOT measured OCR accuracy or proof of authenticity.');
 
   return {
     requirementType, findings, notes,
-    ...(ocrQuality ? { ocrQuality, comparisonVersion: 'rules-v2-quality' } : {}),
+    ...(ocrQuality ? { ocrQuality, comparisonVersion: 'rules-v3-name-evidence' } : {}),
     matchedCount: findings.filter(f => f.status === 'matched').length,
     mismatchCount: findings.filter(f => f.status === 'possible_mismatch').length,
     needsReviewCount: findings.filter(f => f.status === 'needs_review').length,

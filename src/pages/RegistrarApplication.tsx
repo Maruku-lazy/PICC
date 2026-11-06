@@ -1,10 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowLeft, ClipboardCheck, FileText, Info, MessageSquareText } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, ClipboardCheck, FileText, Info, MessageSquareText } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useDemo } from '../context/DemoContext';
 import { statusDescription, statusLabel, type ApplicationStatus } from '../types';
 import { getDocumentRequirements, ID_PHOTO_REQUIREMENT } from '../data/documentRequirements';
 import './DocumentUploads.css';
+import './EnrollmentWorkflow.css';
 import DocumentPreview from '../components/DocumentPreview';
 import DocumentAuditPanel from '../components/DocumentAuditPanel';
 import RegistrarSubjectAssignment from '../components/RegistrarSubjectAssignment';
@@ -25,7 +26,16 @@ function Detail({ label, value }: { label: string; value?: string }) {
 }
 
 export default function RegistrarApplication() {
-  const { id } = useParams();
+  const { id, step } = useParams<{ id: string; step?: string }>();
+  const activeStep = ['documents', 'subjects', 'confirmation'].includes(step ?? '') ? step! : 'form';
+  const steps = [
+    { id: 'form', label: 'Enrollment form', description: 'Review applicant information' },
+    { id: 'documents', label: 'Documentary requirements', description: 'AI findings and final verdicts' },
+    { id: 'subjects', label: 'Subjects and sections', description: 'Assign classes and schedules' },
+    { id: 'confirmation', label: 'Enrollment confirmation', description: 'Assessment, payment and COR' },
+  ] as const;
+  const stepIndex = steps.findIndex(item => item.id === activeStep);
+  const stepPath = (name: string) => `/registrar/applications/${id}${name === 'form' ? '' : `/${name}`}`;
   const navigate = useNavigate();
   const { applications, changeStatus, dataLoading, isSupabase } = useDemo();
   const app = applications.find((application) => application.id === id && application.status !== 'draft');
@@ -51,6 +61,8 @@ export default function RegistrarApplication() {
       if (!silent) setDocumentsLoading(false);
     }
   }, [isSupabase, id]);
+
+  useEffect(() => { window.scrollTo(0, 0); }, [activeStep, id]);
 
   useEffect(() => {
     if (!isSupabase || !id) { setUploadedDocuments([]); return; }
@@ -78,7 +90,9 @@ export default function RegistrarApplication() {
     setSaving(true);
     try {
       await changeStatus(app!.id, status, note.trim());
-      navigate('/registrar/dashboard');
+      // Keep the Registrar in the four-step workflow after starting or completing form review.
+      // Correction requests return to the queue, since the student must act next.
+      if (status === 'needs_correction') navigate('/registrar/dashboard');
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Could not update application.');
     } finally { setSaving(false); }
@@ -107,7 +121,18 @@ export default function RegistrarApplication() {
       <span className="page-icon"><ClipboardCheck size={28} /></span>
     </div>
 
-    <div className="review-layout">
+    <nav className="workflow-registrar-tabs" aria-label="Registrar application review steps">
+      {steps.map((item, index) => (
+        <Link key={item.id} to={stepPath(item.id)} aria-current={activeStep === item.id ? 'step' : undefined}
+          className={`workflow-registrar-tab ${activeStep === item.id ? 'active' : ''}`}>
+          <span className="workflow-tab-number">{index + 1}</span>
+          <span className="workflow-tab-label"><strong>{item.label}</strong><small>{item.description}</small></span>
+          {index < stepIndex && <CheckCircle2 size={16} aria-hidden="true" />}
+        </Link>
+      ))}
+    </nav>
+
+    {activeStep === 'form' && <div className="review-layout workflow-review-form">
       <div className="form-main">
         <section className="surface-card form-card">
           <div className="section-heading">
@@ -167,6 +192,32 @@ export default function RegistrarApplication() {
           </div>
         </section>
 
+      </div>
+      <aside className="form-side">
+        <section className="surface-card help-card">
+          <div className="form-section-heading compact">
+            <span className="form-heading-icon"><MessageSquareText size={19} /></span>
+            <div><h2>Review actions</h2><p>{statusDescription[app.status]}</p></div>
+          </div>
+          {error && <div className="notice-error" role="alert">{error}</div>}
+          <form onSubmit={correctionSubmit} className="review-actions">
+            <label className="form-field"><span>Registrar note</span>
+              <textarea rows={4} value={note} onChange={(event) => setNote(event.target.value)}
+                disabled={app.status === 'documents_verified'}
+                placeholder="Explain corrections or review notes" />
+            </label>
+            {canStart && <button type="button" disabled={saving} className="button button-secondary full-button" onClick={() => void transition('under_review')}>Mark under review</button>}
+            {(app.status === 'submitted' || canComplete) && <button disabled={saving} className="button button-outline-warning full-button" type="submit">Request corrections</button>}
+            {canComplete && <button type="button" disabled={saving} className="button button-primary full-button" onClick={() => void transition('documents_verified')}>Complete form review (no document verification)</button>}
+            {app.status === 'documents_verified' && <div className="notice-success"><ClipboardCheck size={18} /> Form review marked complete. Uploaded documents are not verified.</div>}
+          </form>
+        </section>
+      </aside>
+    </div>}
+
+    {activeStep === 'documents' && <div className="workflow-document-page">
+      <div className="workflow-step-intro"><h2>Documentary requirements and AI screening</h2>
+        <p>Check the actual scan and compare preliminary AI findings before recording each independent Registrar verdict.</p></div>
         <section className="surface-card form-card">
           <div className="form-section-heading">
             <span className="form-heading-icon"><FileText size={19} /></span>
@@ -218,46 +269,43 @@ export default function RegistrarApplication() {
             </span></div>
           )}
           <div className="soft-panel"><Info size={19} /><span>
-            {isSupabase ? 'In-app file previews are time-limited and permitted only for authorized accounts. JPG/PNG uploads trigger preliminary OCR in the student browser. The sidebar shows saved findings and lets the Registrar record a separate Pass/Fail/Follow-up verdict after manual inspection. Enrollment status is independent.' : 'This is a filename-only demo. Actual scanned files are NOT stored, and no AI verification has occurred.'}
+            {isSupabase ? 'In-app file previews are time-limited and permitted only for authorized accounts. JPG/PNG uploads trigger preliminary OCR in the student browser. The screening overview below shows saved findings and lets the Registrar record a separate Pass/Fail/Follow-up verdict after manual inspection. Enrollment status is independent.' : 'This is a filename-only demo. Actual scanned files are NOT stored, and no AI verification has occurred.'}
           </span></div>
         </section>
-        {isSupabase && <RegistrarSubjectAssignment key={app.id} application={app} />}
-        {isSupabase && <RegistrarEnrollmentConfirmation key={`enrollment-${app.id}`} application={app} />}
-      </div>
-
-      <aside className="form-side">
-        <section className="surface-card help-card">
-          <div className="form-section-heading compact">
-            <span className="form-heading-icon"><MessageSquareText size={19} /></span>
-            <div><h2>Review actions</h2><p>{statusDescription[app.status]}</p></div>
-          </div>
-          {error && <div className="notice-error" role="alert">{error}</div>}
-          <form onSubmit={correctionSubmit} className="review-actions">
-            <label className="form-field"><span>Registrar note</span>
-              <textarea rows={4} value={note} onChange={(event) => setNote(event.target.value)}
-                disabled={app.status === 'documents_verified'}
-                placeholder="Explain corrections or review notes" />
-            </label>
-            {canStart && <button type="button" disabled={saving} className="button button-secondary full-button" onClick={() => void transition('under_review')}>Mark under review</button>}
-            {(app.status === 'submitted' || canComplete) && <button disabled={saving} className="button button-outline-warning full-button" type="submit">Request corrections</button>}
-            {canComplete && <button type="button" disabled={saving} className="button button-primary full-button" onClick={() => void transition('documents_verified')}>Complete form review (no document verification)</button>}
-            {app.status === 'documents_verified' && <div className="notice-success"><ClipboardCheck size={18} /> Form review marked complete. Uploaded documents are not verified.</div>}
-          </form>
-        </section>
-        {isSupabase && id && documentRequirements.length > 0 && (
+      {isSupabase && id && documentRequirements.length > 0 && (
+        <div className="surface-card workflow-audit-card">
+          <div className="workflow-step-intro"><h2>Document completeness and final decisions</h2>
+            <p>Full-width review: expand AI findings, preview scans, and choose Pass, Fail, or Needs follow-up for each file.</p></div>
           <DocumentAuditPanel
             key={id}
             applicationId={id}
             applicant={app}
-            reviewable={app.status === 'submitted' || app.status === 'under_review'}
+            reviewable={['submitted', 'under_review', 'documents_verified'].includes(app.status)}
             requirements={documentRequirements}
             documents={uploadedDocuments}
             documentsLoading={documentsLoading}
             documentsError={documentsError}
             refreshDocuments={refreshDocuments}
           />
-        )}
-      </aside>
+        </div>
+      )}
+    </div>}
+
+    {activeStep === 'subjects' && <div className="workflow-feature-page">
+      <div className="workflow-step-intro"><h2>Subject and section assignment</h2>
+        <p>Assign eligible offerings, confirm section capacity, and check that class times do not overlap.</p></div>
+      {isSupabase ? <RegistrarSubjectAssignment key={app.id} application={app} /> : <div className="soft-panel">Academic assignments are available in Supabase mode.</div>}
+    </div>}
+
+    {activeStep === 'confirmation' && <div className="workflow-feature-page">
+      <div className="workflow-step-intro"><h2>Assessment and final enrollment confirmation</h2>
+        <p>After form, document, and subject checks, record external payment verification and confirm enrollment.</p></div>
+      {isSupabase ? <RegistrarEnrollmentConfirmation key={`enrollment-${app.id}`} application={app} /> : <div className="soft-panel">Enrollment confirmation is available in Supabase mode.</div>}
+    </div>}
+
+    <div className="workflow-step-footer">
+      {stepIndex > 0 ? <Link className="button button-secondary" to={stepPath(steps[stepIndex - 1].id)}><ArrowLeft size={17}/> Previous step</Link> : <span />}
+      {stepIndex < steps.length - 1 ? <Link className="button button-primary" to={stepPath(steps[stepIndex + 1].id)}>Next: {steps[stepIndex + 1].label} <ArrowRight size={17}/></Link> : <Link className="button button-secondary" to="/registrar/dashboard">Return to application queue</Link>}
     </div>
-  </>;
+  </>
 }

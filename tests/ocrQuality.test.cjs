@@ -66,11 +66,13 @@ test('good-quality PSA text retains original matched comparisons', () => {
   assert.equal(r.needsReviewCount, 0);
   assert.equal(r.ocrQuality.status, 'readable');
 });
-test('low-quality PSA text downgrades matches to needs review while preserving extracted values', () => {
+test('low-confidence OCR retains exact name text match but downgrades other fields', () => {
   const r = compareDocumentText('PSA Birth Certificate', sample, applicant, {confidence: 35, recognitionMs: 900});
-  assert.equal(r.matchedCount, 0);
+  assert.equal(r.matchedCount, 1);
   assert.equal(r.mismatchCount, 0);
-  assert.equal(r.needsReviewCount, 3);
+  assert.equal(r.needsReviewCount, 2);
+  assert.equal(r.ocrQuality.status, 'review_required');
+  assert.match(r.findings.find(x=>x.field==='fullName').explanation, /low/);
   assert.equal(r.findings.find(x=>x.field==='birthDate').extracted, 'March 15, 2007');
 });
 test('low-quality mismatched birthdate stays visible without claiming certain discrepancy', () => {

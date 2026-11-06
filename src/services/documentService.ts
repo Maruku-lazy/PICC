@@ -1,3 +1,5 @@
+import { validateDocumentBytes } from './fileValidation';
+
 // Keep Supabase loading lazy so the separate frontend-only demo mode still runs.
 async function getSupabase() {
   return (await import('../lib/supabase')).supabase;
@@ -55,6 +57,7 @@ export async function uploadApplicationDocument(
   if (!ext || !filenameMatches) throw new Error('Select a JPG, PNG, or PDF scanned document.');
   if (!file.size || file.size > MAX_SIZE) throw new Error('File must be between 1 byte and 10 MB.');
   if (!requirementType.trim()) throw new Error('The document requirement was not specified.');
+  await validateDocumentBytes(file);
 
   const { data: auth, error: authError } = await supabase.auth.getUser();
   if (authError || !auth.user) throw new Error('Your login session has expired. Sign in again.');
@@ -76,24 +79,64 @@ export async function uploadApplicationDocument(
     throw recordError;
   }
 
-  // Replacing a scan creates a new private path; clean up the previous object.
-  // Even if cleanup fails, the old object is no longer linked to the application.
+  // Metadata update queued the old path in PostgreSQL. If Storage cleanup
+  // fails, the queue retains the path and another visit can retry safely.
   if (previous?.storage_path && previous.storage_path !== path) {
-    const { error: cleanupError } = await supabase.storage.from(BUCKET).remove([previous.storage_path]);
-    if (cleanupError) console.warn('Old scan could not be removed; administrator cleanup may be required.', cleanupError);
+    try {
+      await reconcileMyPiccStorageCleanup();
+    } catch (error) {
+      console.warn('Old scan cleanup was queued for a later retry:', error);
+    }
   }
 }
 
-export async function removeApplicationDocument(document: ApplicationDocument): Promise<void> {
+/**
+ * Complete cleanup requests recorded by the database after a document
+ * is replaced or removed. Keep pending entries until Storage deletion
+ * succeeds; never delete a Storage object merely because a client supplied
+ * an arbitrary path.
+ */
+export async function reconcileMyPiccStorageCleanup(): Promise<void> {
   const supabase = await getSupabase();
-  // Delete the actual object first. If metadata removal fails, retrying is possible.
-  const { error: fileError } = await supabase.storage.from(BUCKET).remove([document.storage_path]);
-  if (fileError) throw fileError;
-  const { error } = await supabase.rpc('forget_my_picc_document', {
+  const { data, error } = await supabase.rpc('picc_my_pending_storage_cleanup');
+  if (error) throw error;
+  const pending = (data ?? []) as {storage_path:string}[];
+  const failures: string[] = [];
+  for (const entry of pending) {
+    const path = entry.storage_path;
+    const { error: removeError } = await supabase.storage.from(BUCKET).remove([path]);
+    if (removeError) { failures.push(removeError.message); continue; }
+    const { error: finishError } = await supabase.rpc('picc_finish_storage_cleanup', {
+      p_storage_path: path,
+    });
+    if (finishError) failures.push(finishError.message);
+  }
+  if (failures.length) {
+    throw new Error(`${failures.length} old scan(s) are pending secure cleanup. Reopen the application to retry. ${failures[0]}`);
+  }
+}
+
+export async function removeApplicationDocument(document: ApplicationDocument): Promise<{ cleanupPending: boolean }> {
+  const supabase = await getSupabase();
+  // Remove metadata transactionally first. A DB trigger queues the old path;
+  // if the RPC fails the object and metadata both remain intact.
+  const { data: removedPath, error } = await supabase.rpc('forget_my_picc_document', {
     p_application_id: document.application_id,
     p_requirement_type: document.requirement_type,
   });
   if (error) throw error;
+  if (removedPath !== document.storage_path) {
+    // Another tab modified it. Metadata was committed, so refresh and do not
+    // delete the untrusted/stale path; queue reconciliation is still safe.
+    return { cleanupPending: true };
+  }
+  try {
+    await reconcileMyPiccStorageCleanup();
+    return { cleanupPending: false };
+  } catch (cause) {
+    console.warn('Metadata was removed. File cleanup queued for retry:', cause);
+    return { cleanupPending: true };
+  }
 }
 
 export async function createDocumentPreviewUrl(storagePath: string): Promise<string> {

@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
-  BookOpen, BookOpenCheck, CalendarDays, ChevronRight, ClipboardList, GraduationCap, LayoutDashboard,
+  BookOpen, BookOpenCheck, CalendarDays, ChevronRight, ClipboardList, FileCheck2, GraduationCap, LayoutDashboard,
   LogOut, Menu, ShieldAlert, X,
 } from 'lucide-react';
 import { useDemo } from '../context/DemoContext';
@@ -16,7 +16,8 @@ export default function Layout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const nav: NavEntry[] = role === 'student' ? [
     { path: '/student/dashboard', label: 'Overview', icon: LayoutDashboard },
-    { path: '/student/application', label: 'My application', icon: ClipboardList },
+    { path: '/student/application', label: 'Enrollment form', icon: ClipboardList },
+    { path: '/student/documents', label: 'Documentary requirements', icon: FileCheck2 },
   ] : [
     { path: '/registrar/dashboard', label: 'Application queue', icon: LayoutDashboard },
     { path: '/registrar/academics', label: 'Academic management', icon: CalendarDays },
@@ -24,7 +25,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     { path: '/registrar/roadmap', label: 'Upcoming modules', icon: BookOpen },
   ];
   const title = role === 'student' ? 'Student Portal' : "Registrar's Office";
-  const crumb = location.pathname.includes('application') ? 'Applications' : location.pathname.includes('curricula') ? 'Curriculum management' : location.pathname.includes('academics') ? 'Academic management' : location.pathname.includes('roadmap') ? 'Development roadmap' : 'Overview';
+  const crumb = location.pathname.includes('/student/documents') ? 'Documentary requirements' : location.pathname.includes('application') ? 'Applications' : location.pathname.includes('curricula') ? 'Curriculum management' : location.pathname.includes('academics') ? 'Academic management' : location.pathname.includes('roadmap') ? 'Development roadmap' : 'Overview';
   async function handleLogout() {
     try {
       await logout();

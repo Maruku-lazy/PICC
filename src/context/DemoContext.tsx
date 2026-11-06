@@ -10,6 +10,7 @@ export interface AppContextValue {
   applications: EnrollmentApplication[];
   loading: boolean;
   dataLoading: boolean;
+  dataError: string | null;
   isSupabase: boolean;
   userId: string | null;
   displayName: string;
@@ -47,7 +48,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(applications)); }, [applications]);
 
   const value: AppContextValue = {
-    role, applications, loading: false, dataLoading: false, isSupabase: false,
+    role, applications, loading: false, dataLoading: false, dataError: null, isSupabase: false,
     userId: role === 'student' ? STUDENT_ID : role === 'registrar' ? 'local-demo-registrar' : null,
     displayName: role === 'student' ? 'Demo Student' : 'Demo Registrar',
     login: async (selectedRole) => {

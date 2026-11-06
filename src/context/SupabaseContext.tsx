@@ -42,6 +42,7 @@ export function SupabaseProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(true);
+  const [dataError, setDataError] = useState<string | null>(null);
   const [applications, setApplications] = useState<EnrollmentApplication[]>([]);
   const userId = authUser?.id ?? null;
 
@@ -60,6 +61,7 @@ export function SupabaseProvider({ children }: { children: ReactNode }) {
     if (!userId) {
       setProfile(null);
       setApplications([]);
+      setDataError(null);
       setProfileLoading(false);
       setDataLoading(false);
       return;
@@ -86,7 +88,7 @@ export function SupabaseProvider({ children }: { children: ReactNode }) {
   // dataLoading=true: ApplicationPage would unmount, reset its upload/OCR state,
   // and make the UI look like it reloaded while OCR is still running.
   const refreshApplications = useCallback(async (showInitialLoader = false) => {
-    if (!userId || !role) { setApplications([]); setDataLoading(false); return; }
+    if (!userId || !role) { setApplications([]); setDataError(null); setDataLoading(false); return; }
     if (showInitialLoader) setDataLoading(true);
     try {
       const { data, error } = await supabase.from('enrollment_applications')
@@ -94,6 +96,10 @@ export function SupabaseProvider({ children }: { children: ReactNode }) {
         .order('updated_at', { ascending: false });
       if (error) throw error;
       setApplications(((data ?? []) as ApplicationRow[]).map(toApplication));
+      setDataError(null);
+    } catch (cause) {
+      setDataError(cause instanceof Error ? cause.message : 'Could not load applications.');
+      throw cause;
     } finally {
       if (showInitialLoader) setDataLoading(false);
     }
@@ -109,7 +115,7 @@ export function SupabaseProvider({ children }: { children: ReactNode }) {
   }, [initialized, profileLoading, role, refreshApplications]);
 
   const value = useMemo<AppContextValue>(() => ({
-    role, applications, isSupabase: true,
+    role, applications, dataError, isSupabase: true,
     loading: !initialized || profileLoading,
     dataLoading,
     userId,
@@ -149,8 +155,10 @@ export function SupabaseProvider({ children }: { children: ReactNode }) {
     },
     resetPassword: async (email) => {
       if (!email.trim()) throw new Error('Enter your email address first.');
-      // Full password update UI is planned separately. Do not send a dead recovery link.
-      throw new Error('Password reset setup is pending. Ask the development administrator to reset this test account.');
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
     },
     logout: async () => {
       const { error } = await supabase.auth.signOut();
@@ -177,7 +185,7 @@ export function SupabaseProvider({ children }: { children: ReactNode }) {
     },
     refreshApplications,
     resetDemo: () => {}, // Do not allow destructive demo reset on live records.
-  }), [role, applications, initialized, profileLoading, dataLoading, userId, profile, authUser, refreshApplications]);
+  }), [role, applications, initialized, profileLoading, dataLoading, dataError, userId, profile, authUser, refreshApplications]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

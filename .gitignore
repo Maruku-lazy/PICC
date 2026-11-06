@@ -6,3 +6,7 @@ dist/
 *.log
 .DS_Store
 .vscode/
+
+# Generated test credentials and local seed secrets must never be shared
+.env.seed-credentials.json
+.env.seed.local
